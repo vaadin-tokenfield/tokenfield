@@ -24,8 +24,8 @@ TokenField Reloaded is an updated fork of the original, abandoned TokenField add
 using a ComboBox-style input with suggestions from a backing `Container`.
 
 This fork is not affiliated with the original TokenField Directory listing or its author; see the
-project's `NOTICE` file for attribution. It exists to keep the add-on usable and to provide a path
-toward a Vaadin 8 port.
+project's `NOTICE` file for attribution. It exists to keep the add-on usable with a proper test
+suite (JUnit 5 unit tests + Playwright for Java browser tests) and a path toward a Vaadin 8 port.
 
 Features:
 
@@ -43,7 +43,8 @@ UI Components, Data Binding, Forms
 
 ## Maturity level
 
-Beta — functionally complete, but not yet exercised in production by this fork's maintainers.
+Beta — functionally complete, covered by an automated test suite, but not yet exercised in
+production by this fork's maintainers.
 
 ## Compatibility
 

@@ -12,7 +12,7 @@ see [NOTICE](NOTICE.txt) for full attribution.
 
 Goals of the fork:
 
-- [ ] add a proper testing harness (JUnit 5 + Playwright)
+- [x] add a proper testing harness (JUnit 5 unit tests + a Cucumber/Playwright-for-Java BDD browser suite)
 - [ ] fix inherited issues
 - [ ] port to Vaadin 8
 
@@ -87,9 +87,42 @@ Features include:
 ## Building from source
 
 ```shell
-./mvnw clean package              # build the add-on JAR and the Directory ZIP bundle
-./mvnw -pl tokenfield-demo jetty:run   # run the demo at http://localhost:8080/
+./mvnw clean verify                        # unit tests + coverage check + browser BDD suite
+                                            # (downloads Chromium once; -DskipITs=true to skip it)
+./mvnw -pl tokenfield-demo -am package -DskipTests && ./mvnw -pl tokenfield-demo jetty:run
+                                            # run the demo at http://localhost:8080/
 ```
+
+`jetty:run` alone only builds up to `test-compile`, so the widgetset (bound to `prepare-package`)
+won't have been rebuilt yet — hence the explicit `package` first.
+
+Browser tests are BDD scenarios: the spec lives in
+`tokenfield-demo/src/test/resources/features/token_field.feature` (readable on its own — it's meant as
+living documentation of how a user works with `TokenField`), and `RunCucumberIT` in
+`tokenfield-demo/src/test/java/org/vaadin/tokenfield/it/` runs it under `maven-failsafe-plugin` against a
+`jetty-maven-plugin`-managed instance of the demo; they run by default on `mvn verify`/`install`, locally
+and in CI alike (`-DskipITs=true` for a fast inner loop without them). A scenario-by-scenario HTML report
+is written to `tokenfield-demo/target/cucumber/report.html`.
+
+### Running the browser tests from an IDE
+
+`RunCucumberIT` is a plain JUnit 5 (Platform Suite) test, so an IDE can run/debug it directly without going
+through Maven at all — note that "run all tests" in a module only matches `*Test`, not `*IT`, so it won't
+be picked up that way. An IDE with a Cucumber plugin can also run a single scenario straight from the
+`.feature` file. On a
+direct run, with no server started, `DemoServer` boots its own embedded Jetty on a free port instead of
+relying on the Maven-managed instance above. One-time setup:
+
+```shell
+./mvnw -pl tokenfield-demo -am package -DskipTests   # builds the widgetset the embedded server needs
+```
+
+Re-run that whenever client-side (widgetset) code changes; server-side changes only need a recompile.
+Then run/debug any `*IT` class straight from the IDE. Useful VM options:
+
+- `-Dit.headed=true` — show the browser instead of running headless.
+- Set the run configuration's working directory to `tokenfield-demo` so Playwright traces land in
+  `tokenfield-demo/target/playwright` as expected.
 
 ## Credits
 

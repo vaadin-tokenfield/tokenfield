@@ -19,6 +19,25 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Add Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
+- JUnit 5 unit test suite (114 tests) covering container handling, buffering, read-only state,
+  insert position, button configuration, delegation, sizing, captions/icons, layout swapping,
+  the delete-key path, and UI input behavior.
+- JaCoCo coverage reporting and a build-failing line-coverage threshold (90%) on the add-on module.
+- A Cucumber-JVM BDD browser suite (27 scenarios across all five demo panels), driven by
+  Playwright for Java and run under `maven-failsafe-plugin` against a `jetty-maven-plugin`-managed
+  instance of the demo as part of `mvn verify`/`install` by default, locally and in CI alike
+  (`-DskipITs=true` to skip). The spec
+  itself — `tokenfield-demo/src/test/resources/features/token_field.feature` — reads as living
+  documentation of how a user works with `TokenField`; `RunCucumberIT` (JUnit Platform Suite +
+  `cucumber-junit-platform-engine`) is what failsafe actually discovers, `PlaywrightHooks` owns the
+  browser/page lifecycle per scenario (Jupiter extensions like `@UsePlaywright` don't reach the
+  Cucumber engine), and `cucumber-picocontainer` shares state into the step classes through a
+  `DemoWorld`. Replaces the five `*IT.java` classes (26 tests) from the initial Playwright-for-Java
+  port, and before that an earlier, disconnected TypeScript/Node Playwright suite that never ran in
+  CI and required a manually pre-started server.
+- `RunCucumberIT` also runs directly from an IDE, without the Maven-managed server: `DemoServer` boots
+  an embedded Jetty on a free port when `it.baseUrl` isn't set by failsafe. Requires one `mvn package`
+  to build the widgetset first; see the README's "Running the browser tests from an IDE" section.
 
 ### Fixed
 

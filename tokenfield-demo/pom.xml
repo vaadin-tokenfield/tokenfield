@@ -14,19 +14,13 @@
 
     <properties>
         <jetty.version>9.4.58.v20250814</jetty.version>
-    </properties>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.eclipse.jetty</groupId>
-                <artifactId>jetty-bom</artifactId>
-                <version>${jetty.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
+        <!-- Browser integration tests run by default on `mvn verify`/`install`,
+             locally and in CI alike (downloads Chromium once). Opt out for a
+             fast inner loop with `-DskipITs=true`. -->
+        <skipITs>false</skipITs>
+        <it.stop.key>tokenfield-it</it.stop.key>
+    </properties>
 
     <dependencies>
         <dependency>
@@ -47,10 +41,51 @@
             <groupId>com.vaadin</groupId>
             <artifactId>vaadin-themes</artifactId>
         </dependency>
+
+        <!-- Browser integration tests -->
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-servlet</artifactId>
-            <scope>provided</scope>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.google.truth</groupId>
+            <artifactId>truth</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- BDD: the *.feature scenarios in src/test/resources/features are the
+             spec; these run them, wiring Playwright lifecycle by hand (Jupiter
+             extensions like @UsePlaywright don't reach the Cucumber engine). -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit-platform-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-picocontainer</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-suite</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -81,15 +116,132 @@
                 </executions>
             </plugin>
 
+            <!-- Reserves free ports for the IT jetty instance before it starts, so
+                 ITs don't collide with a developer's own `jetty:run` on 8080. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>reserve-it-ports</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>reserve-network-port</goal>
+                        </goals>
+                        <configuration>
+                            <portNames>
+                                <portName>it.http.port</portName>
+                                <portName>it.stop.port</portName>
+                            </portNames>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Downloads the Chromium build Playwright drives the ITs with. Uses the
+                 "exec" goal (a real forked process), not "java" (runs in-process):
+                 com.microsoft.playwright.CLI calls System.exit() when it's done, which
+                 under "java" kills the Maven JVM itself mid-build with no further output. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>install-playwright-chromium</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipITs}</skip>
+                            <executable>${java.home}/bin/java</executable>
+                            <classpathScope>test</classpathScope>
+                            <arguments>
+                                <argument>-cp</argument>
+                                <classpath/>
+                                <argument>com.microsoft.playwright.CLI</argument>
+                                <argument>install</argument>
+                                <argument>chromium</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Runs the Playwright-for-Java browser tests against the jetty instance
+                 started below. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>integration-tests</id>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skipITs>${skipITs}</skipITs>
+                    <systemPropertyVariables>
+                        <it.baseUrl>http://localhost:${it.http.port}</it.baseUrl>
+                    </systemPropertyVariables>
+                    <environmentVariables>
+                        <!-- Fail fast with "browser not installed" instead of silently
+                             pulling all three ~500 MB browser bundles. -->
+                        <PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD>1</PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+
             <!-- The Jetty plugin allows us to easily test the development build by -->
-            <!-- running jetty:run on the command line. -->
+            <!-- running jetty:run on the command line; it also starts/stops the -->
+            <!-- packaged WAR around the browser integration tests above. -->
             <plugin>
                 <groupId>org.eclipse.jetty</groupId>
                 <artifactId>jetty-maven-plugin</artifactId>
                 <version>${jetty.version}</version>
                 <configuration>
+                    <!-- applies to the ad-hoc `mvn jetty:run` developer workflow only -->
                     <scanIntervalSeconds>2</scanIntervalSeconds>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>start-jetty-for-its</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>deploy-war</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipITs}</skip>
+                            <daemon>true</daemon>
+                            <scanIntervalSeconds>0</scanIntervalSeconds>
+                            <httpConnector>
+                                <port>${it.http.port}</port>
+                            </httpConnector>
+                            <stopKey>${it.stop.key}</stopKey>
+                            <stopPort>${it.stop.port}</stopPort>
+                            <webApp>
+                                <contextPath>/</contextPath>
+                            </webApp>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>stop-jetty-after-its</id>
+                        <phase>post-integration-test</phase>
+                        <goals>
+                            <goal>stop</goal>
+                        </goals>
+                        <configuration>
+                            <!-- jetty:stop has no <skip> parameter; when jetty was never
+                                 started it logs "Jetty not running!" and succeeds. -->
+                            <stopKey>${it.stop.key}</stopKey>
+                            <stopPort>${it.stop.port}</stopPort>
+                            <stopWait>10</stopWait>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
