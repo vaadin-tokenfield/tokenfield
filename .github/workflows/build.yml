@@ -49,8 +49,18 @@ jobs:
       - name: Set Maven version
         run: mvn --batch-mode versions:set -DnewVersion=${{ steps.ver.outputs.version }} -DgenerateBackupPoms=false
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-1.62.0
+          restore-keys: playwright-${{ runner.os }}-
+
+      - name: Install Playwright OS dependencies
+        run: sudo npx --yes playwright@1.62.0 install-deps chromium
+
       - name: Build
-        run: mvn --batch-mode --no-transfer-progress --update-snapshots verify
+        run: mvn --batch-mode --no-transfer-progress --update-snapshots verify -DskipITs=false
 
       # Snapshots only: releases publish to Maven Central via the "release" profile,
       # not to GitHub Packages (which requires an authenticated PAT and can't serve

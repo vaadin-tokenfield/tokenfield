@@ -25,7 +25,7 @@ using a ComboBox-style input with suggestions from a backing `Container`.
 
 This fork is not affiliated with the original TokenField Directory listing or its author; see the
 project's `NOTICE` file for attribution. It exists to keep the add-on usable with a proper test
-suite (JUnit 5 + Playwright) and a path toward a Vaadin 8 port.
+suite (JUnit 5 unit tests + Playwright for Java browser tests) and a path toward a Vaadin 8 port.
 
 Features:
 

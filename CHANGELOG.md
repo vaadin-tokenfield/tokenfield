@@ -19,6 +19,14 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Add Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
+- JUnit 5 unit test suite (114 tests) covering container handling, buffering, read-only state,
+  insert position, button configuration, delegation, sizing, captions/icons, layout swapping,
+  the delete-key path, and UI input behavior.
+- JaCoCo coverage reporting and a build-failing line-coverage threshold (90%) on the add-on module.
+- Playwright for Java browser integration tests (26 tests across all five demo panels), run under
+  `maven-failsafe-plugin` against a `jetty-maven-plugin`-managed instance of the demo as part of
+  `mvn verify` (`-DskipITs=false`; on by default in CI). Replaces an earlier, disconnected
+  TypeScript/Node Playwright suite that never ran in CI and required a manually pre-started server.
 
 ### Fixed
 

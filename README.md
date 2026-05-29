@@ -12,7 +12,7 @@ see [NOTICE](NOTICE.txt) for full attribution.
 
 Goals of the fork:
 
-- [ ] add a proper testing harness (JUnit 5 + Playwright)
+- [x] add a proper testing harness (JUnit 5 unit tests + Playwright for Java browser tests)
 - [ ] fix inherited issues
 - [ ] port to Vaadin 8
 
@@ -87,9 +87,18 @@ Features include:
 ## Building from source
 
 ```shell
-./mvnw clean verify              # build + run the JUnit 5 test suite
-./mvnw -pl tokenfield-demo jetty:run   # run the demo at http://localhost:8080/
+./mvnw clean verify                        # unit tests + coverage check
+./mvnw clean verify -DskipITs=false        # + browser integration tests (downloads Chromium once)
+./mvnw -pl tokenfield-demo -am package -DskipTests && ./mvnw -pl tokenfield-demo jetty:run
+                                            # run the demo at http://localhost:8080/
 ```
+
+`jetty:run` alone only builds up to `test-compile`, so the widgetset (bound to `prepare-package`)
+won't have been rebuilt yet — hence the explicit `package` first.
+
+Browser tests live in `tokenfield-demo/src/test/java/org/vaadin/tokenfield/it/` (`*IT.java`) and run
+under `maven-failsafe-plugin` against a `jetty-maven-plugin`-managed instance of the demo; they're
+skipped by default locally (`-DskipITs=false` to enable) and run in CI on every build.
 
 ## Credits
 

@@ -31,6 +31,8 @@
         <vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
 
         <junit.version>5.14.4</junit.version>
+        <truth.version>1.4.5</truth.version>
+        <playwright.version>1.62.0</playwright.version>
 
         <maven.deploy.skip>true</maven.deploy.skip>
 
@@ -127,6 +129,16 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>com.microsoft.playwright</groupId>
+                <artifactId>playwright</artifactId>
+                <version>${playwright.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.google.truth</groupId>
+                <artifactId>truth</artifactId>
+                <version>${truth.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -175,6 +187,11 @@
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>3.6.0-M1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-war-plugin</artifactId>
                     <version>3.5.1</version>
                 </plugin>
@@ -187,6 +204,21 @@
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>flatten-maven-plugin</artifactId>
                     <version>1.8.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>exec-maven-plugin</artifactId>
+                    <version>3.5.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>build-helper-maven-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.jacoco</groupId>
+                    <artifactId>jacoco-maven-plugin</artifactId>
+                    <version>0.8.15</version>
                 </plugin>
                 <plugin>
                     <groupId>org.sonatype.central</groupId>
