@@ -1,0 +1,16 @@
+TokenField Reloaded
+Copyright 2010-2013 Marc Englund
+
+This product is a fork of "TokenField", originally created by Marc Englund
+(http://code.google.com/p/tokenfield/ ; originally hosted on Google Code and
+published to the Vaadin Directory as "TokenField", latest upstream release
+7.0.1, 2013-02-14). This fork is not affiliated with, endorsed by, or
+maintained by the original author, and is published under a new name and a
+new Maven groupId (org.vaadin.addons.tokenfield) to avoid any confusion with
+the original, unmaintained Directory listing.
+
+This product includes software developed by Marc Englund and by the
+TokenField Reloaded contributors.
+
+Licensed under the Apache License, Version 2.0. See LICENSE.txt for the full
+license text.

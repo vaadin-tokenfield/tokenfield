@@ -1,0 +1,9 @@
+Manifest-Version: 1.0
+Implementation-Title: ${Implementation-Title}
+Implementation-Version: ${Implementation-Version}
+Implementation-Vendor: ${Implementation-Vendor}
+Vaadin-Package-Version: 1
+Vaadin-Addon: ${Vaadin-Addon}
+Vaadin-License-Title: ${Vaadin-License-Title}
+Vaadin-License-File: ${Vaadin-License-File}
+Vaadin-Widgetsets: ${Vaadin-Widgetsets}

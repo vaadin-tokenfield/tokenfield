@@ -1,0 +1,305 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd"
+         child.project.url.inherit.append.path="false">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.vaadin.addons.tokenfield</groupId>
+    <artifactId>tokenfield-parent</artifactId>
+    <packaging>pom</packaging>
+    <version>7.0.2-SNAPSHOT</version>
+    <name>TokenField Add-on Parent Project</name>
+    <description>
+        TokenField Reloaded is an updated fork of the abandoned TokenField Vaadin add-on: a
+        Vaadin 7 component for selecting multiple "tokens" via a ComboBox-style input, for use cases
+        such as tagging and email address selection.
+    </description>
+    <url>https://github.com/vaadin-tokenfield/tokenfield</url>
+
+    <modules>
+        <module>tokenfield</module>
+        <module>tokenfield-demo</module>
+    </modules>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+
+        <vaadin.version>7.7.17</vaadin.version>
+        <vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
+
+        <junit.version>5.14.4</junit.version>
+
+        <maven.deploy.skip>true</maven.deploy.skip>
+
+        <project.scm.id>github</project.scm.id>
+    </properties>
+
+    <organization>
+        <name>Vaadin Community</name>
+        <url>https://github.com/vaadin-tokenfield/</url>
+    </organization>
+
+    <developers>
+        <developer>
+            <name>Daniel Rothmaler</name>
+            <email>drothmaler@googlemail.com</email>
+            <roles>
+                <role>Maintainer</role>
+            </roles>
+        </developer>
+        <developer>
+            <name>Marc Englund</name>
+            <email>marc.englund@gmail.com</email>
+            <roles>
+                <role>Original Author</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <!--
+        Maven appends each child module's artifactId to inherited SCM/url paths by
+        default; this is a single-repo, multi-module project, so the three
+        child.scm.*.inherit.append.path attributes below suppress that (Maven 3.6.1+).
+    -->
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
+        <url>https://github.com/vaadin-tokenfield/tokenfield/</url>
+        <connection>scm:git:git@github.com:vaadin-tokenfield/tokenfield.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com:vaadin-tokenfield/tokenfield.git</developerConnection>
+    </scm>
+
+    <issueManagement>
+        <system>GitHub</system>
+        <url>https://github.com/vaadin-tokenfield/tokenfield/issues</url>
+    </issueManagement>
+
+    <licenses>
+        <license>
+            <name>Apache-2.0</name>
+            <url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <repositories>
+        <repository>
+            <id>vaadin-addons</id>
+            <url>https://maven.vaadin.com/vaadin-addons</url>
+        </repository>
+    </repositories>
+
+    <!--
+        Releases publish to Maven Central via the "release" profile (see below);
+        GitHub Packages requires an authenticated PAT to resolve and is unsuitable
+        for the Directory's public Maven coordinate, so it is used for snapshots
+        only.
+    -->
+    <distributionManagement>
+        <repository>
+            <id>vaadin-addons</id>
+            <name>Vaadin Add-on Directory</name>
+            <url>https://maven.vaadin.com/vaadin-addons</url>
+        </repository>
+        <snapshotRepository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/vaadin-tokenfield/tokenfield</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.vaadin</groupId>
+                <artifactId>vaadin-bom</artifactId>
+                <version>${vaadin.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.junit</groupId>
+                <artifactId>junit-bom</artifactId>
+                <version>${junit.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.vaadin</groupId>
+                    <artifactId>vaadin-maven-plugin</artifactId>
+                    <version>${vaadin.plugin.version}</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <version>3.8.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-deploy-plugin</artifactId>
+                    <version>3.1.4</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.6.3</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-jar-plugin</artifactId>
+                    <version>3.5.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.12.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <version>3.4.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.6.0-M1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-war-plugin</artifactId>
+                    <version>3.5.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.2.8</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>1.8.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.sonatype.central</groupId>
+                    <artifactId>central-publishing-maven-plugin</artifactId>
+                    <version>0.11.0</version>
+                    <extensions>true</extensions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-maven</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>3.6.3</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <!--
+                Signs and publishes release artifacts to Maven Central via the Central
+                Portal. Requires a GPG signing key and a `central` server entry (Central
+                Portal token) in settings.xml; see https://central.sonatype.org/publish/publish-portal-maven/
+                Run with: mvn -Prelease -DskipTests deploy
+            -->
+            <id>release</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <!-- Review the deployment in the Central Portal before releasing it -->
+                            <autoPublish>false</autoPublish>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <!-- Vaadin pre-release repositories -->
+            <id>vaadin-prerelease</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+
+            <repositories>
+                <repository>
+                    <id>vaadin-prereleases</id>
+                    <url>https://maven.vaadin.com/vaadin-prereleases</url>
+                </repository>
+                <repository>
+                    <id>vaadin-snapshots</id>
+                    <url>https://oss.sonatype.org/content/repositories/vaadin-snapshots/</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>vaadin-prereleases</id>
+                    <url>https://maven.vaadin.com/vaadin-prereleases</url>
+                </pluginRepository>
+                <pluginRepository>
+                    <id>vaadin-snapshots</id>
+                    <url>https://oss.sonatype.org/content/repositories/vaadin-snapshots/</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
+</project>

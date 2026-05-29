@@ -1,0 +1,95 @@
+# This workflow will build a Java project with Maven, and cache/restore any dependencies to improve the workflow execution time
+
+name: Build & Publish with Maven
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            VERSION="$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' \
+              --non-recursive exec:exec)"
+            case "$VERSION" in
+              *-SNAPSHOT) ;;
+              *) VERSION="${VERSION}-SNAPSHOT" ;;
+            esac
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set Maven version
+        run: mvn --batch-mode versions:set -DnewVersion=${{ steps.ver.outputs.version }} -DgenerateBackupPoms=false
+
+      - name: Build
+        run: mvn --batch-mode --no-transfer-progress --update-snapshots verify
+
+      # Snapshots only: releases publish to Maven Central via the "release" profile,
+      # not to GitHub Packages (which requires an authenticated PAT and can't serve
+      # as the Directory's public Maven coordinate).
+      - name: Deploy snapshot
+        if: steps.ver.outputs.release == 'false'
+        run: mvn --batch-mode --no-transfer-progress -DskipTests deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Directory add-on bundle
+        if: steps.ver.outputs.release == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: tokenfield-addon-zip
+          path: tokenfield/target/*-addon.zip
+          if-no-files-found: error
+
+      # Re-runs setup-java to overwrite settings.xml with the Central Portal server
+      # entry + import the GPG signing key. Requires org.vaadin.addons.tokenfield to
+      # be a verified namespace on central.sonatype.com and these four repo secrets
+      # to be set before this step will succeed.
+      - name: Configure Maven Central credentials
+        if: steps.ver.outputs.release == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: maven
+          server-id: central
+          server-username: CENTRAL_TOKEN_USERNAME
+          server-password: CENTRAL_TOKEN_PASSWORD
+          gpg-private-key: ${{ secrets.MAVEN_GPG_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+
+      - name: Publish release to Maven Central
+        if: steps.ver.outputs.release == 'true'
+        run: mvn --batch-mode --no-transfer-progress -Prelease -DskipTests deploy
+        env:
+          CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
+          CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}

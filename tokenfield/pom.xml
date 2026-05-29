@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>tokenfield</artifactId>
+    <packaging>jar</packaging>
+    <name>TokenField Add-on</name>
+
+    <parent>
+        <groupId>org.vaadin.addons.tokenfield</groupId>
+        <artifactId>tokenfield-parent</artifactId>
+        <version>7.0.2-SNAPSHOT</version>
+    </parent>
+
+    <properties>
+        <maven.deploy.skip>false</maven.deploy.skip>
+
+        <!-- Vaadin Directory listing name - immutable after the first upload, must not change -->
+        <addon.name>TokenField Reloaded</addon.name>
+
+        <!-- ZIP Manifest fields -->
+        <Implementation-Version>${project.version}</Implementation-Version>
+        <Implementation-Title>${addon.name}</Implementation-Title>
+        <Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
+        <Vaadin-License-Title>Apache License 2.0</Vaadin-License-Title>
+        <Vaadin-License-File>https://www.apache.org/licenses/LICENSE-2.0.txt</Vaadin-License-File>
+        <Vaadin-Widgetsets>org.vaadin.tokenfield.TokenfieldWidgetset</Vaadin-Widgetsets>
+        <Vaadin-Addon>${project.artifactId}-${project.version}.jar</Vaadin-Addon>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-client</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-engine</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <!--
+                                Derives Implementation-Version/Vendor from the POM; the
+                                Implementation-Title it would derive from ${project.name}
+                                is overridden below since manifestEntries wins over it.
+                            -->
+                            <addClasspath>true</addClasspath>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+                        </manifest>
+                        <manifestEntries>
+                            <!-- Must match the Vaadin Directory listing name exactly -->
+                            <Implementation-Title>${addon.name}</Implementation-Title>
+                            <!-- Package format version - do not change -->
+                            <Vaadin-Package-Version>1</Vaadin-Package-Version>
+                            <Vaadin-License-Title>${Vaadin-License-Title}</Vaadin-License-Title>
+                            <Vaadin-License-File>${Vaadin-License-File}</Vaadin-License-File>
+                            <Vaadin-Widgetsets>${Vaadin-Widgetsets}</Vaadin-Widgetsets>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-javadoc</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <!--
+                        appendAssemblyId defaults to true: the assembly is attached with
+                        classifier "addon" (from assembly.xml's <id>) instead of replacing
+                        the main JAR artifact
+                    -->
+                    <descriptors>
+                        <descriptor>assembly/assembly.xml</descriptor>
+                    </descriptors>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Testing -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <configuration>
+                    <flattenMode>oss</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+
+        <!--
+            Only the client-side sources need to ship in the binary JAR, for the GWT
+            compiler to recompile the widgetset against; server-side sources belong in
+            the sources JAR (maven-source-plugin), not here.
+        -->
+        <resources>
+            <resource>
+                <directory>src/main/java</directory>
+                <includes>
+                    <include>**/*.gwt.xml</include>
+                    <include>org/vaadin/tokenfield/client/**</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
+    </build>
+</project>
