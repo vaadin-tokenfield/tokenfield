@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app id="WebApp_ID" version="2.4" xmlns="http://java.sun.com/xml/ns/j2ee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee https://java.sun.com/xml/ns/j2ee/web-app_2_4.xsd">
+    <display-name>TokenField</display-name>
+    <context-param>
+        <description>Vaadin production mode</description>
+        <param-name>productionMode</param-name>
+        <param-value>false</param-value>
+    </context-param>
+    <servlet>
+        <servlet-name>Tokenfield Demo</servlet-name>
+        <servlet-class>com.vaadin.server.VaadinServlet</servlet-class>
+        <init-param>
+            <param-name>UI</param-name>
+            <param-value>org.vaadin.tokenfield.DemoRoot</param-value>
+        </init-param>
+        <!--
+            No explicit widgetset param: vaadin-maven-plugin generates and compiles
+            an aggregate "AppWidgetset" (inheriting TokenfieldWidgetset) for this
+            webapp, and VaadinServlet resolves that automatically. Pointing this at
+            org.vaadin.tokenfield.TokenfieldWidgetset directly breaks the demo, since
+            that widgetset is never compiled into this WAR.
+        -->
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>Tokenfield Demo</servlet-name>
+        <url-pattern>/*</url-pattern>
+    </servlet-mapping>
+    <welcome-file-list>
+        <welcome-file>index.html</welcome-file>
+        <welcome-file>index.htm</welcome-file>
+        <welcome-file>index.jsp</welcome-file>
+        <welcome-file>default.html</welcome-file>
+        <welcome-file>default.htm</welcome-file>
+        <welcome-file>default.jsp</welcome-file>
+    </welcome-file-list>
+</web-app>

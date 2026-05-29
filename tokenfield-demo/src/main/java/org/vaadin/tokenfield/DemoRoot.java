@@ -19,6 +19,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.vaadin.tokenfield.TokenField.InsertPosition;
 
@@ -27,6 +28,7 @@ import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.data.util.BeanItem;
 import com.vaadin.data.util.BeanItemContainer;
+import com.vaadin.data.util.IndexedContainer;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.ui.combobox.FilteringMode;
 import com.vaadin.ui.Alignment;
@@ -234,18 +236,16 @@ public class DemoRoot extends UI {
                 HorizontalLayout controls = new HorizontalLayout();
                 l.addComponent(controls);
 
-                // generate container
-                Container tokens = generateTestContainer();
-
                 // w/ datasource, no configurator
-                final TokenField f = new TokenField();
-                /*
-                 * f.setContainerDataSource(tokens); //
-                 * f.setNewTokensAllowed(false);
-                 * f.setFilteringMode(ComboBox.FILTERINGMODE_CONTAINS);
-                 * f.setInputPrompt("firstname.lastname@example.com"); -
-                 */
-                l.addComponent(f);
+                AtomicReference<TokenField> f = new AtomicReference<>(new TokenField());
+                l.addComponent(f.updateAndGet(tf -> {
+                    /*
+                     * tf.setNewTokensAllowed(false);
+                     * tf.setFilteringMode(ComboBox.FILTERINGMODE_CONTAINS);
+                     */
+                    tf.setInputPrompt("firstname.lastname@example.com");
+                    return tf;
+                }));
 
                 final NativeSelect lo = new NativeSelect("Layout");
                 lo.setImmediate(true);
@@ -254,28 +254,31 @@ public class DemoRoot extends UI {
                 lo.addItem(GridLayout.class);
                 lo.addItem(CssLayout.class);
                 lo.setNullSelectionAllowed(false);
-                lo.setValue(f.getLayout().getClass());
+                lo.setValue(f.get().getLayout().getClass());
                 lo.addValueChangeListener(new ValueChangeListener() {
                     private static final long serialVersionUID = -5644191531547324609L;
-
-                    private TokenField curr = f;
 
                     @Override
                     public void valueChange(ValueChangeEvent event) {
                         try {
-                            Layout l = (Layout) ((Class) event.getProperty()
-                                    .getValue()).newInstance();
-                            if (l instanceof GridLayout) {
-                                ((GridLayout) l).setColumns(3);
+                            Object v = event.getProperty().getValue();
+                            Class<Layout> lc = (Class<Layout>) v;
+                            Layout ll = lc.newInstance();
+                            if (ll instanceof GridLayout) {
+                                ((GridLayout) ll).setColumns(3);
                             }
-                            l.removeComponent(curr);
-                            curr = new TokenField(l);
-                            l.addComponent(curr);
+                            TokenField old = f.getAndUpdate(o -> {
+                                TokenField curr = new TokenField(ll);
+                                curr.setValue(o.getValue());
+                                curr.setInputPrompt(o.getInputPrompt());
+                                return curr;
+                            });
+                            l.replaceComponent(old, f.get());
                         } catch (Exception e) {
                             Notification.show("Ouch!",
                                     "Could not make a " + lo.getValue(),
                                     Type.ERROR_MESSAGE);
-                            lo.setValue(f.getLayout().getClass());
+                            lo.setValue(f.get().getLayout().getClass());
                             e.printStackTrace();
                         }
                     }
@@ -288,31 +291,30 @@ public class DemoRoot extends UI {
                 ip.addItem(InsertPosition.AFTER);
                 ip.addItem(InsertPosition.BEFORE);
                 ip.setNullSelectionAllowed(false);
-                ip.setValue(f.getTokenInsertPosition());
+                ip.setValue(f.get().getTokenInsertPosition());
                 ip.addValueChangeListener(new ValueChangeListener() {
 
                     private static final long serialVersionUID = 518234140117517538L;
 
                     public void valueChange(ValueChangeEvent event) {
-                        f.setTokenInsertPosition((InsertPosition) ip.getValue());
+                        f.get().setTokenInsertPosition((InsertPosition) ip.getValue());
                     }
                 });
                 controls.addComponent(ip);
 
                 final CheckBox cb = new CheckBox("Read-only");
                 cb.setImmediate(true);
-                cb.setValue(f.isReadOnly());
+                cb.setValue(f.get().isReadOnly());
                 cb.addValueChangeListener(new ValueChangeListener() {
 
                     private static final long serialVersionUID = 8812909594903040042L;
 
                     public void valueChange(ValueChangeEvent event) {
-                        f.setReadOnly(cb.getValue());
+                        f.get().setReadOnly(cb.getValue());
                     }
                 });
                 controls.addComponent(cb);
                 controls.setComponentAlignment(cb, Alignment.BOTTOM_LEFT);
-
             }
 
             {
@@ -351,7 +353,6 @@ public class DemoRoot extends UI {
                 f.setPropertyDataSource(list);
 
                 lo.addComponent(new Button("<<", new Button.ClickListener() {
-
                     private static final long serialVersionUID = 1375470313147460732L;
 
                     public void buttonClick(ClickEvent event) {
