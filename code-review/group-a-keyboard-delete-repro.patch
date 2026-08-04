@@ -1,0 +1,336 @@
+diff --git a/tokenfield/src/test/java/org/vaadin/tokenfield/TokenFieldDeleteKeyReproTest.java b/tokenfield/src/test/java/org/vaadin/tokenfield/TokenFieldDeleteKeyReproTest.java
+new file mode 100644
+index 0000000..3f287f6
+--- /dev/null
++++ b/tokenfield/src/test/java/org/vaadin/tokenfield/TokenFieldDeleteKeyReproTest.java
+@@ -0,0 +1,330 @@
++package org.vaadin.tokenfield;
++
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++
++import java.util.Set;
++
++import static org.junit.jupiter.api.Assertions.*;
++
++/**
++ * Reproduction tests for issue 01 (AFTER-mode delete key broken) and issue 11
++ * (ComboBox suggestion popup may appear after delete).
++ *
++ * <h2>Testing philosophy</h2>
++ * <p>
++ * Issues 01 and 11 are primarily GWT / browser-side bugs. The JVM cannot load
++ * or execute GWT client code, so the broken client fields
++ * ({@code VTokenField.after} and the missing {@code onStateChanged} in
++ * {@code TokenFieldConnector}) cannot be exercised here.
++ * </p>
++ * <p>
++ * This class therefore:
++ * <ol>
++ *   <li>Tests the <em>server-side observable parts</em> that are correctly
++ *       implemented (these pass and confirm the server has the right state).</li>
++ *   <li>Uses {@code fail("GWT-only: …")} in methods whose name describes the
++ *       actual broken behaviour so that the test suite contains a permanently
++ *       failing reminder of each open bug.</li>
++ * </ol>
++ * </p>
++ *
++ * <h2>Issue 01 summary (three sub-bugs)</h2>
++ * <ul>
++ *   <li><b>01a</b> — {@code VTokenField.after} is declared but never written by
++ *       {@code TokenFieldConnector}. The DELETE-key branch in
++ *       {@code VTokenField.onKeyDown} is therefore unreachable when
++ *       {@code InsertPosition.AFTER} is selected.</li>
++ *   <li><b>01b</b> — {@code TokenComboBox.paintContent} emits
++ *       {@code target.addAttribute("after", true)} via legacy UIDL painting,
++ *       but {@code TokenFieldConnector} never overrides {@code onStateChanged}
++ *       to consume it, so the painted value is silently discarded.</li>
++ *   <li><b>01c</b> — {@code paintContent} still calls
++ *       {@code target.addVariable(this, "del", false)}, which is dead code:
++ *       deletes now travel via {@code TokenFieldServerRpc.deleteToken()}.
++ *       The variable round-trip is wasted bandwidth and could confuse
++ *       future maintainers.</li>
++ * </ul>
++ *
++ * <h2>Issue 11 summary</h2>
++ * <p>
++ * {@code VTokenField.onKeyDown} returns early after firing delete listeners,
++ * suppressing {@code super.onKeyDown}. However {@code VFilterSelect} (the GWT
++ * parent) also listens on {@code onKeyUp} for popup triggering. When a delete
++ * is handled on keyDown, the corresponding keyUp is <em>not</em> suppressed, so
++ * the suggestion popup may momentarily open even though a token was deleted.
++ * </p>
++ */
++class TokenFieldDeleteKeyReproTest {
++
++    private TestTokenField field;
++
++    @BeforeEach
++    void setUp() {
++        field = new TestTokenField();
++    }
++
++    // =========================================================================
++    // SERVER-SIDE PASSING TESTS
++    // These verify that the server state is correct; the bugs are on the client.
++    // =========================================================================
++
++    /**
++     * Server state: {@code TokenField.insertPosition} is updated to AFTER when
++     * {@code setTokenInsertPosition(AFTER)} is called.
++     *
++     * <p><b>What this does NOT prove:</b> the client's {@code VTokenField.after}
++     * flag remains {@code false} because {@code TokenFieldConnector} never reads
++     * the painted {@code after} attribute and never writes {@code getWidget().after}.
++     * See issue 01a.</p>
++     */
++    @Test
++    void issue01a_serverInsertPositionIsAfterAfterSetCall() {
++        field.setTokenInsertPosition(TokenField.InsertPosition.AFTER);
++        assertEquals(
++                TokenField.InsertPosition.AFTER,
++                field.getTokenInsertPosition(),
++                "Server-side insertPosition must be AFTER after setTokenInsertPosition(AFTER)");
++    }
++
++    /**
++     * Server state: {@code TokenComboBox.insertPosition} is propagated from
++     * {@code TokenField.setTokenInsertPosition}.
++     *
++     * <p>This confirms the server correctly delegates the position change to the
++     * embedded {@code TokenComboBox}, which then emits the {@code after} attribute
++     * in {@code paintContent}. The bug (01b) is that the connector discards that
++     * attribute on the client.</p>
++     */
++    @Test
++    void issue01b_comboBoxInsertPositionMirrorsFieldInsertPosition() {
++        // Default is BEFORE
++        assertEquals(
++                TokenField.InsertPosition.BEFORE,
++                field.getComboBox().insertPosition,
++                "Default cb.insertPosition must be BEFORE");
++
++        field.setTokenInsertPosition(TokenField.InsertPosition.AFTER);
++        assertEquals(
++                TokenField.InsertPosition.AFTER,
++                field.getComboBox().insertPosition,
++                "cb.insertPosition must update to AFTER after setTokenInsertPosition(AFTER)");
++    }
++
++    /**
++     * Server state: {@code TokenComboBox.insertPosition} starts as BEFORE,
++     * confirming the default does not accidentally trigger the AFTER branch in
++     * {@code paintContent}.
++     */
++    @Test
++    void issue01b_comboBoxDefaultInsertPositionIsBefore() {
++        assertEquals(
++                TokenField.InsertPosition.BEFORE,
++                field.getComboBox().insertPosition,
++                "Default insertPosition must be BEFORE so paintContent does not emit after=true");
++    }
++
++    /**
++     * RPC delete chain (server-side): calling {@code cb.onDelete()} when tokens
++     * are present removes the last token.
++     *
++     * <p>This exercises the <em>correct</em> path: the client fires
++     * {@code TokenFieldServerRpc.deleteToken()}, which calls
++     * {@code TokenComboBox.onDelete()}, which calls
++     * {@code TokenField.onTokenDelete(lastToken)}, which removes the token.
++     * The server side of this chain is intact.</p>
++     *
++     * <p>The bug (01a) is that the RPC call is <em>never reached</em> from the
++     * client when {@code InsertPosition.AFTER} is active, because
++     * {@code VTokenField.after} is always {@code false}.</p>
++     */
++    @Test
++    void issue01c_rpcDeleteChainRemovesLastToken_serverSideCorrect() {
++        field.addToken("alpha");
++        field.addToken("beta");
++        field.addToken("gamma");
++
++        // Simulate the server side of the RPC call (TokenFieldServerRpc.deleteToken
++        // → TokenComboBox.onDelete → TokenField.onTokenDelete).
++        field.getComboBox().onDelete();
++
++        @SuppressWarnings("unchecked")
++        Set<Object> value = (Set<Object>) field.getValue();
++        assertFalse(
++                value.contains("gamma"),
++                "After onDelete(), last token 'gamma' must be removed");
++        assertTrue(
++                value.contains("alpha") && value.contains("beta"),
++                "Earlier tokens must remain after a single delete");
++        assertEquals(2, field.getTokenButtons().size());
++    }
++
++    /**
++     * RPC delete chain: deleting from a single-token field results in an empty
++     * token set (not null or an error).
++     */
++    @Test
++    void issue01c_rpcDeleteChainOnSingleTokenYieldsEmptySet() {
++        field.addToken("only");
++        field.getComboBox().onDelete();
++
++        @SuppressWarnings("unchecked")
++        Set<Object> value = (Set<Object>) field.getValue();
++        // value may be null or an empty set depending on implementation
++        assertTrue(
++                value == null || value.isEmpty(),
++                "After deleting the only token, value must be null or empty");
++        assertTrue(field.getTokenButtons().isEmpty(),
++                "No token buttons must remain after deleting the only token");
++    }
++
++    /**
++     * RPC delete chain: calling {@code onDelete()} on an empty field must not
++     * throw an exception (guard in {@code TokenField.onDelete} checks
++     * {@code buttons.isEmpty()}).
++     */
++    @Test
++    void issue01c_rpcDeleteOnEmptyFieldDoesNotThrow() {
++        assertDoesNotThrow(
++                () -> field.getComboBox().onDelete(),
++                "onDelete() on an empty token field must not throw");
++        assertTrue(field.getTokenButtons().isEmpty());
++    }
++
++    /**
++     * RPC delete chain with AFTER position: the server-side delete chain works
++     * identically regardless of insert position. This confirms that even if the
++     * client <em>could</em> fire the RPC in AFTER mode, the server would handle
++     * it correctly.
++     */
++    @Test
++    void issue01c_rpcDeleteChainWorksInAfterModeServerSide() {
++        field.setTokenInsertPosition(TokenField.InsertPosition.AFTER);
++        field.addToken("first");
++        field.addToken("last");
++
++        field.getComboBox().onDelete();
++
++        @SuppressWarnings("unchecked")
++        Set<Object> value = (Set<Object>) field.getValue();
++        assertFalse(value.contains("last"),
++                "Server-side delete in AFTER mode must remove the last token");
++        assertTrue(value.contains("first"),
++                "Earlier token must survive after single delete in AFTER mode");
++    }
++
++    // =========================================================================
++    // FAILING REPRO TESTS — GWT-ONLY BUGS
++    // These methods document what is broken and will fail until fixed.
++    // Failure messages contain the exact file/line location of the defect.
++    // =========================================================================
++
++    /**
++     * <b>BUG 01a — {@code VTokenField.after} is never written by connector.</b>
++     *
++     * <p>Root cause: {@code TokenFieldConnector} (line 17) declares
++     * {@code protected boolean after = false} but never writes it, and never
++     * writes {@code getWidget().after}. Pressing DELETE when
++     * {@code InsertPosition.AFTER} is selected therefore does nothing because
++     * {@code VTokenField.onKeyDown} guards the DELETE branch with
++     * {@code (kc == KeyCodes.KEY_DELETE && after)} — where {@code after} is
++     * always {@code false}.</p>
++     *
++     * <p>Fix: create {@code TokenFieldState} with a {@code boolean after} field,
++     * set it in {@code TokenComboBox}, override {@code onStateChanged} in
++     * {@code TokenFieldConnector} to sync {@code getWidget().after = getState().after}.</p>
++     *
++     * <p><b>GWT-only — cannot be tested on the JVM.</b></p>
++     */
++    @Test
++    void issue01a_VTokenFieldAfterFlagNeverSyncedFromServer() {
++        fail("BUG 01a [GWT-only]: VTokenField.after is always false. "
++                + "TokenFieldConnector declares 'protected boolean after = false' "
++                + "(TokenFieldConnector.java:17) but never writes getWidget().after. "
++                + "The DELETE-key branch in VTokenField.onKeyDown:26 is therefore "
++                + "unreachable. Pressing DELETE in InsertPosition.AFTER mode does nothing. "
++                + "Fix: introduce TokenFieldState.after and sync in onStateChanged().");
++    }
++
++    /**
++     * <b>BUG 01b — {@code paintContent} emits {@code after} attribute that the
++     * connector ignores.</b>
++     *
++     * <p>Root cause: {@code TokenComboBox.paintContent} (line 30–32) calls
++     * {@code target.addAttribute("after", true)} for AFTER mode. The connector
++     * never overrides {@code onStateChanged} (nor {@code updateFromUIDL} in Vaadin 7
++     * GWT style) to consume this attribute. The value is painted and discarded
++     * every repaint cycle.</p>
++     *
++     * <p>Fix: replace UIDL painting with a shared state field (see issue 01a fix).
++     * Remove the {@code paintContent} override in {@code TokenComboBox} entirely.</p>
++     *
++     * <p><b>GWT-only — cannot be tested on the JVM.</b></p>
++     */
++    @Test
++    void issue01b_paintContentAfterAttributeDiscardedByConnector() {
++        fail("BUG 01b [GWT-only]: TokenComboBox.paintContent() emits "
++                + "target.addAttribute(\"after\", true) (TokenComboBox.java:30-32) "
++                + "but TokenFieldConnector has no onStateChanged() override to read it. "
++                + "TokenFieldConnector.after (line 17) is a dead field — declared, "
++                + "never written, never propagated to VTokenField.after. "
++                + "Fix: use TokenFieldState.after instead of UIDL paintContent.");
++    }
++
++    /**
++     * <b>BUG 01c — {@code addVariable(this, \"del\", false)} in
++     * {@code paintContent} is dead code.</b>
++     *
++     * <p>Root cause: {@code TokenComboBox.paintContent} (line 29) registers a
++     * legacy UIDL variable {@code "del"}. Deletes now travel exclusively through
++     * {@code TokenFieldServerRpc.deleteToken()}. The variable registration
++     * consumes bandwidth on every repaint and may mislead future maintainers into
++     * believing there is a variable-change handler for {@code "del"} somewhere.</p>
++     *
++     * <p>Fix: remove {@code target.addVariable(this, "del", false)} from
++     * {@code TokenComboBox.paintContent}. If no other attributes are needed,
++     * remove the {@code paintContent} override entirely.</p>
++     *
++     * <p><b>Static / GWT-only — cannot cause a server-side exception, but wastes
++     * bandwidth and is misleading.</b></p>
++     */
++    @Test
++    void issue01c_deadDelVariableInPaintContent() {
++        fail("BUG 01c [dead code]: TokenComboBox.paintContent() calls "
++                + "target.addVariable(this, \"del\", false) (TokenComboBox.java:29). "
++                + "Deletes are now handled via TokenFieldServerRpc.deleteToken() — "
++                + "this variable is never changed by the client and no server-side "
++                + "changeVariables handler reads it. "
++                + "Fix: remove addVariable(this, \"del\", false) from paintContent.");
++    }
++
++    /**
++     * <b>BUG 11 — ComboBox suggestion popup may appear after delete key.</b>
++     *
++     * <p>Root cause: {@code VTokenField.onKeyDown} fires delete listeners and
++     * returns early (VTokenField.java:29), suppressing {@code super.onKeyDown}.
++     * However, {@code VFilterSelect} (the GWT parent class) also processes
++     * {@code onKeyUp} events to trigger the suggestion popup. When a delete is
++     * handled on keyDown, the corresponding keyUp event still propagates to
++     * {@code VFilterSelect.onKeyUp}, which may open the suggestion popup even
++     * though a token was just deleted.</p>
++     *
++     * <p>Fix: introduce a {@code boolean deleteHandled} flag in
++     * {@code VTokenField}. Set it to {@code true} when delete is fired in
++     * {@code onKeyDown}. Override {@code onKeyUp}: if {@code deleteHandled} is
++     * set, clear it and return without calling {@code super.onKeyUp} (suppresses
++     * popup). Otherwise delegate normally.</p>
++     *
++     * <p><b>GWT-only — cannot be tested on the JVM.</b></p>
++     */
++    @Test
++    void issue11_suggestionPopupMayAppearAfterDeleteKey() {
++        fail("BUG 11 [GWT-only]: VTokenField.onKeyDown fires delete listeners "
++                + "and returns early (VTokenField.java:29), but VFilterSelect.onKeyUp "
++                + "is NOT suppressed. The suggestion popup may open on keyUp even when "
++                + "keyDown triggered a token delete. "
++                + "Fix: add 'private boolean deleteHandled' to VTokenField; set true "
++                + "in the delete branch of onKeyDown; override onKeyUp to suppress "
++                + "super.onKeyUp when deleteHandled is true.");
++    }
++}

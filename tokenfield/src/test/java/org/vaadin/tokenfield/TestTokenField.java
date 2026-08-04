@@ -111,6 +111,18 @@ public class TestTokenField extends TokenField {
     }
 
     // -----------------------------------------------------------------------
+    // Delegation helpers for protected production-code methods
+    // -----------------------------------------------------------------------
+
+    /**
+     * Exposes the protected {@link TokenField#rememberToken(String)} for
+     * direct invocation from same-package tests (issue #02 repro).
+     */
+    public void callRememberToken(String tokenId) {
+        rememberToken(tokenId);
+    }
+
+    // -----------------------------------------------------------------------
     // Accessors for test assertions
     // -----------------------------------------------------------------------
 
