@@ -90,6 +90,18 @@ public class TestTokenField extends TokenField {
     }
 
     // -----------------------------------------------------------------------
+    // Delegation helpers for protected production-code methods
+    // -----------------------------------------------------------------------
+
+    /**
+     * Exposes the protected {@link TokenField#rememberToken(String)} for
+     * direct invocation from same-package tests (issue #02 repro).
+     */
+    public void callRememberToken(String tokenId) {
+        rememberToken(tokenId);
+    }
+
+    // -----------------------------------------------------------------------
     // Accessors for test assertions
     // -----------------------------------------------------------------------
 
@@ -115,5 +127,15 @@ public class TestTokenField extends TokenField {
             result.add(component);
         }
         return result;
+    }
+
+    /**
+     * Directly calls the protected {@code setInternalValue} method, bypassing
+     * the read-only guard in {@link com.vaadin.ui.AbstractField#setValue}.
+     * Used in tests to programmatically inject a value while the field is
+     * already in read-only mode, in order to exercise {@code addTokenButton}.
+     */
+    public void exposeSetInternalValue(Object value) {
+        setInternalValue(value);
     }
 }
