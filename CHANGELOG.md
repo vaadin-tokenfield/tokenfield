@@ -46,7 +46,8 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
   (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
   locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert
-  until a `SONAR_TOKEN` secret is configured. See [docs/code-quality.md](docs/code-quality.md).
+  until a `SONAR_TOKEN` secret is configured. The Sonar analysis imports unit-test line coverage from
+  JaCoCo's XML report. See [docs/code-quality.md](docs/code-quality.md).
 
 ### Fixed
 

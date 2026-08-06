@@ -15,6 +15,15 @@
     <properties>
         <maven.deploy.skip>false</maven.deploy.skip>
 
+        <!--
+            Where Sonar picks the coverage figure up. It reads JaCoCo's XML report
+            (never the binary jacoco.exec), and this is the same directory the
+            report execution below writes to — ${project.reporting.outputDirectory}/jacoco
+            being jacoco:report's own default. Spelled out rather than left to
+            Sonar's built-in default so the two can't drift apart silently.
+        -->
+        <sonar.coverage.jacoco.xmlReportPaths>${project.reporting.outputDirectory}/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
+
         <!-- Vaadin Directory listing name - immutable after the first upload, must not change -->
         <addon.name>TokenField Reloaded</addon.name>
 
@@ -157,6 +166,12 @@
                         </goals>
                     </execution>
                     <execution>
+                        <!--
+                            Writes HTML, XML and CSV. The XML one is what Sonar
+                            imports (see sonar.coverage.jacoco.xmlReportPaths above);
+                            bound to `test` so it exists by the time the Code Quality
+                            workflow's analysis step runs, which stops at that phase.
+                        -->
                         <id>report</id>
                         <phase>test</phase>
                         <goals>

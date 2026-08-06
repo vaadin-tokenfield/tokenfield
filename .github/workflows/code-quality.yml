@@ -110,10 +110,22 @@ jobs:
       # Only the add-on module is analysed: it is the code that ships, and its
       # build has no GWT step that would need Java 8. Stopping at `test` (rather
       # than `verify`) keeps the widgetset compile and the javadoc/assembly
-      # packaging out of the way while still producing the JaCoCo XML report
-      # Sonar reads coverage from.
+      # packaging out of the way while still running the tests under the JaCoCo
+      # agent, which is where the coverage Sonar imports comes from.
+      - name: Test with coverage
+        if: steps.cfg.outputs.enabled == 'true'
+        run: mvn --batch-mode --no-transfer-progress -pl tokenfield -am test
+
+      # Analysis and coverage are separate steps so that a missing report fails
+      # here, loudly, instead of silently publishing an analysis that reports no
+      # coverage at all. sonar.coverage.jacoco.xmlReportPaths in
+      # tokenfield/pom.xml points at exactly this file.
+      - name: Check the JaCoCo XML report Sonar imports
+        if: steps.cfg.outputs.enabled == 'true'
+        run: test -s tokenfield/target/site/jacoco/jacoco.xml
+
       - name: Analyse
         if: steps.cfg.outputs.enabled == 'true'
         run: >
           mvn --batch-mode --no-transfer-progress -pl tokenfield -am
-          test org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar
+          org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar
