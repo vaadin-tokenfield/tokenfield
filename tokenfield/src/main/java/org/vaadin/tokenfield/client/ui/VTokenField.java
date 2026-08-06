@@ -20,12 +20,19 @@ import java.util.List;
 
 import com.google.gwt.event.dom.client.KeyCodes;
 import com.google.gwt.event.dom.client.KeyDownEvent;
+import com.google.gwt.event.dom.client.KeyUpEvent;
 import com.google.gwt.user.client.ui.TextBox;
 import com.vaadin.client.ui.VFilterSelect;
 
 public class VTokenField extends VFilterSelect {
 
     protected boolean after = false;
+
+    /**
+     * Set when the last key-down removed a token, so that the matching key-up
+     * can be swallowed instead of being read as a filter change.
+     */
+    private boolean deleteHandled = false;
 
     protected List<DeleteListener> listeners = new LinkedList<>();
 
@@ -40,14 +47,33 @@ public class VTokenField extends VFilterSelect {
                     && "".equals(((TextBox) event.getSource()).getText())) {
                 if ((kc == KeyCodes.KEY_BACKSPACE && !after)
                         || (kc == KeyCodes.KEY_DELETE && after)) {
+                    deleteHandled = true;
                     fireDeleteListeners();
                     return;
                 }
             }
         }
 
+        deleteHandled = false;
         super.onKeyDown(event);
 
+    }
+
+    /**
+     * {@inheritDoc}
+     * <p>
+     * Suppressed for the key-up that belongs to a key-down which removed a
+     * token: {@link VFilterSelect} re-filters the options on every other
+     * key-up, which pops the suggestion list open on top of a field the user
+     * was only deleting from.
+     */
+    @Override
+    public void onKeyUp(KeyUpEvent event) {
+        if (deleteHandled) {
+            deleteHandled = false;
+            return;
+        }
+        super.onKeyUp(event);
     }
 
     private void fireDeleteListeners() {
