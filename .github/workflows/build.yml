@@ -5,7 +5,7 @@ name: Build & Publish with Maven
 on:
   push:
     # Every branch is built, so work in progress is verified before it reaches a
-    # pull request; only main and v* tags publish anything (see the steps below).
+    # pull request; only main and v* tags publish anything (see the publish job).
     branches: ['**']
     tags: ['v*']
   pull_request:
@@ -18,32 +18,84 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
-  build:
+  # static-analysis, build and sonar run in parallel — none of them needs the
+  # others' output, and this repo's build is fast enough (~2 min) that a shared
+  # "compile once" job would cost more in per-job overhead than it saves. See
+  # docs/code-quality.md for the measurements behind that call.
+  static-analysis:
+    name: SpotBugs & PMD
     # Branches in this repository are already built by the push event above;
     # the pull_request event is what covers pull requests from forks, whose
     # commits never land here as a push.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
 
     runs-on: ubuntu-latest
-    # The browser suite is the long pole of the build; cap the job so a hung
-    # browser or server fails the run in minutes instead of occupying a runner
-    # for the six-hour default.
-    timeout-minutes: 30
+    timeout-minutes: 15
     permissions:
       contents: read
-      packages: write
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 8
           cache: maven
-          server-id: github
-          server-username: GITHUB_ACTOR
-          server-password: GITHUB_TOKEN
+
+      # Configured in the parent POM's pluginManagement, so CI and a local run
+      # execute exactly the same checks. `test-compile` gives the analysers
+      # freshly compiled classes and lets tokenfield-demo resolve tokenfield
+      # from the reactor, and it stops short of `prepare-package`, so the GWT
+      # widgetset compile doesn't run here.
+      #
+      # Gates: SpotBugs at its default Medium threshold with Max effort, PMD on
+      # priority 1-2 findings. The publish job needs this job to succeed, so a
+      # finding here blocks publishing regardless of the other jobs.
+      - name: SpotBugs & PMD
+        run: mvn --batch-mode --no-transfer-progress test-compile spotbugs:check pmd:check
+
+      # The full reports, including the findings below the gates' thresholds.
+      - name: Upload static analysis reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: static-analysis-reports
+          path: |
+            **/target/spotbugsXml.xml
+            **/target/pmd.xml
+            **/target/cpd.xml
+          if-no-files-found: ignore
+          retention-days: 14
+
+  build:
+    name: Build
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+
+    runs-on: ubuntu-latest
+    # The browser suite is the long pole of this job; cap it so a hung browser
+    # or server fails the run in minutes instead of occupying a runner for the
+    # six-hour default.
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      release: ${{ steps.ver.outputs.release }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: maven
 
       - name: Resolve version
         id: ver
@@ -62,11 +114,14 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # Published as a job output so the publish job applies the exact same
+      # version instead of recomputing it in a fresh checkout, where a commit
+      # landing between the two runs could otherwise produce a different one.
       - name: Set Maven version
         run: mvn --batch-mode versions:set -DnewVersion=${{ steps.ver.outputs.version }} -DgenerateBackupPoms=false
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-1.62.0
@@ -75,6 +130,8 @@ jobs:
       - name: Install Playwright OS dependencies
         run: sudo npx --yes playwright@1.62.0 install-deps chromium
 
+      # Unit tests, the JaCoCo coverage floor (tokenfield/pom.xml), the GWT
+      # widgetset compile and the browser BDD suite.
       - name: Build
         run: mvn --batch-mode --no-transfer-progress --update-snapshots verify
 
@@ -93,16 +150,6 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
-      # Snapshots only: releases publish to Maven Central via the "release" profile,
-      # not to GitHub Packages (which requires an authenticated PAT and can't serve
-      # as the Directory's public Maven coordinate). Branch builds verify only —
-      # a snapshot published from a branch would overwrite main's.
-      - name: Deploy snapshot
-        if: steps.ver.outputs.release == 'false' && github.ref == 'refs/heads/main'
-        run: mvn --batch-mode --no-transfer-progress -DskipTests -DskipITs=true deploy
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Upload Directory add-on bundle
         if: steps.ver.outputs.release == 'true'
         uses: actions/upload-artifact@v7
@@ -111,12 +158,146 @@ jobs:
           path: tokenfield/target/*-addon.zip
           if-no-files-found: error
 
+  sonar:
+    name: SonarQube analysis
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      # Defaults to SonarQube Cloud; set a SONAR_HOST_URL repository variable to
+      # point at a self-hosted SonarQube instead.
+      SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+
+    steps:
+      # Sonar analysis needs a project and a token on the Sonar side, which no
+      # workflow can create for us. Until SONAR_TOKEN exists this step explains
+      # itself and passes, instead of failing every build with a credentials
+      # error. See docs/code-quality.md for the one-time setup.
+      - name: Check for Sonar credentials
+        id: cfg
+        run: |
+          if [[ -n "$SONAR_TOKEN" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=SonarQube analysis skipped::No SONAR_TOKEN secret is set; see docs/code-quality.md for the one-time setup."
+          fi
+
+      - uses: actions/checkout@v7
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          # Sonar attributes issues to authors and computes "new code" from
+          # history; a shallow clone has neither.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Java 21, not the project's Java 8: Sonar's scanner requires 17+. It
+      # analyses the Java 8 bytecode and sources this produces all the same.
+      - uses: actions/setup-java@v5
+        if: steps.cfg.outputs.enabled == 'true'
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Cache Sonar analysis data
+        if: steps.cfg.outputs.enabled == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/.sonar/cache
+          key: sonar-${{ runner.os }}
+
+      # Only the add-on module is analysed: it is the code that ships, and its
+      # build has no GWT step that would need Java 8. Stopping at `test` (rather
+      # than `verify`) keeps the widgetset compile and the javadoc/assembly
+      # packaging out of the way while still running the tests under the JaCoCo
+      # agent, which is where the coverage Sonar imports comes from. This
+      # duplicates the unit-test run in the build job (~20s) rather than wait
+      # on it — see docs/code-quality.md for why that trade won out.
+      - name: Test with coverage
+        if: steps.cfg.outputs.enabled == 'true'
+        run: mvn --batch-mode --no-transfer-progress -pl tokenfield -am test
+
+      # Analysis and coverage are separate steps so that a missing report fails
+      # here, loudly, instead of silently publishing an analysis that reports no
+      # coverage at all. sonar.coverage.jacoco.xmlReportPaths in
+      # tokenfield/pom.xml points at exactly this file.
+      - name: Check the JaCoCo XML report Sonar imports
+        if: steps.cfg.outputs.enabled == 'true'
+        run: test -s tokenfield/target/site/jacoco/jacoco.xml
+
+      # -Dsonar.qualitygate.wait=true fails this step, and so the job, if
+      # Sonar's quality gate doesn't pass — the publish job needs this job to
+      # succeed, so that blocks publishing too.
+      - name: Analyse
+        if: steps.cfg.outputs.enabled == 'true'
+        run: >
+          mvn --batch-mode --no-transfer-progress -pl tokenfield -am
+          org.sonarsource.scanner.maven:sonar-maven-plugin:5.7.0.6970:sonar
+          -Dsonar.qualitygate.wait=true
+
+  publish:
+    name: Publish
+    needs: [static-analysis, build, sonar]
+    # GitHub Actions skips a job whose `needs` didn't all succeed, so a
+    # SpotBugs/PMD finding, a build failure or a failed Sonar quality gate
+    # blocks this job without any extra plumbing here. Only main (snapshot) and
+    # v* tags (release) publish anything.
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 8
+          cache: maven
+          server-id: github
+          server-username: GITHUB_ACTOR
+          server-password: GITHUB_TOKEN
+
+      # Applies the exact version the build job resolved and verified against,
+      # rather than recomputing it here.
+      - name: Set Maven version
+        run: mvn --batch-mode versions:set -DnewVersion=${{ needs.build.outputs.version }} -DgenerateBackupPoms=false
+
+      # Only the add-on module is built: this is a fresh runner with no reactor
+      # already compiled, and tokenfield has no reactor dependency on
+      # tokenfield-demo, so `-pl tokenfield` skips recompiling the demo and
+      # re-running its GWT widgetset compile for no reason — it isn't deployed
+      # (maven.deploy.skip is only re-enabled in tokenfield/pom.xml).
+      #
+      # Snapshots only: releases publish to Maven Central via the "release" profile,
+      # not to GitHub Packages (which requires an authenticated PAT and can't serve
+      # as the Directory's public Maven coordinate). Branch builds verify only —
+      # a snapshot published from a branch would overwrite main's, which the job-level
+      # `if:` above already prevents by restricting this job to main and v* tags.
+      - name: Deploy snapshot
+        if: needs.build.outputs.release == 'false'
+        run: mvn --batch-mode --no-transfer-progress -pl tokenfield -DskipTests -DskipITs=true deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Re-runs setup-java to overwrite settings.xml with the Central Portal server
       # entry + import the GPG signing key. Requires org.vaadin.addons.tokenfield to
       # be a verified namespace on central.sonatype.com and these four repo secrets
       # to be set before this step will succeed.
       - name: Configure Maven Central credentials
-        if: steps.ver.outputs.release == 'true'
+        if: needs.build.outputs.release == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -129,8 +310,8 @@ jobs:
           gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
       - name: Publish release to Maven Central
-        if: steps.ver.outputs.release == 'true'
-        run: mvn --batch-mode --no-transfer-progress -Prelease -DskipTests -DskipITs=true deploy
+        if: needs.build.outputs.release == 'true'
+        run: mvn --batch-mode --no-transfer-progress -pl tokenfield -Prelease -DskipTests -DskipITs=true deploy
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}

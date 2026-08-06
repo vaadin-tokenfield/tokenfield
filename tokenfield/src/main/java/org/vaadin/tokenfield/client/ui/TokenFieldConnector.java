@@ -26,14 +26,17 @@ import com.vaadin.shared.ui.Connect;
 @Connect(TokenComboBox.class)
 public class TokenFieldConnector extends ComboBoxConnector {
 
-    private TokenFieldServerRpc rpc = RpcProxy.create(
+    private final TokenFieldServerRpc rpc = RpcProxy.create(
             TokenFieldServerRpc.class, this);
 
     protected boolean after = false;
 
     @Override
     protected void init() {
+        // GWT 2.7 (Vaadin 7.7) compiles this package at source level 1.7 -- no lambdas here.
+        //noinspection Anonymous2MethodRef,Convert2Lambda
         getWidget().addListener(new DeleteListener() {
+            @Override
             public void onDelete() {
                 rpc.deleteToken();
             }

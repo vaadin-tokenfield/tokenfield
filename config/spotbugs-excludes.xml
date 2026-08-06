@@ -2,7 +2,7 @@
 <!--
     SpotBugs findings that are deliberately not enforced. Every entry is scoped
     to a single class/method/pattern so a genuine occurrence elsewhere still
-    fails the check; see .github/workflows/code-quality.yml for how SpotBugs is
+    fails the check; see .github/workflows/build.yml for how SpotBugs is
     run.
 -->
 <FindBugsFilter

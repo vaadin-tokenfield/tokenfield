@@ -24,6 +24,14 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
+        <!--
+            javac itself builds at 1.8 (needed by the JUnit 5/Cucumber/Playwright
+            test harness). The org.vaadin.tokenfield.client package is the exception:
+            Vaadin 7.7.x recompiles it with the bundled GWT 2.7 compiler, which caps
+            source level at Java 7, so that package alone must avoid Java 8 syntax
+            (lambdas, method references, etc.) regardless of this setting; see
+            docs/code-quality.md.
+        -->
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
 
@@ -42,7 +50,7 @@
         <!--
             Static analysis. Both plugins are pinned to their last releases that
             still run on Java 8, which is the JDK this project builds with; see
-            .github/workflows/code-quality.yml and the README's "Code quality"
+            .github/workflows/build.yml and the README's "Code quality"
             section for how they are run.
         -->
         <spotbugs.plugin.version>4.7.3.6</spotbugs.plugin.version>
@@ -50,7 +58,7 @@
 
         <!--
             SonarQube analysis (Sonar's own scanner needs Java 17+, so it runs in
-            its own workflow job, not in the Java 8 build). Inert until a
+            its own workflow job, not in the Java 8 build). Skipped when no
             SONAR_TOKEN secret exists; the key/organization below must match the
             project created in SonarQube Cloud (or your own SonarQube server).
         -->
@@ -60,6 +68,23 @@
              browser suite, not by unit tests; keep it out of the coverage figure
              Sonar reports, exactly as the JaCoCo check already does. -->
         <sonar.coverage.exclusions>**/client/**</sonar.coverage.exclusions>
+        <!-- java:S110 measures inheritance depth. Vaadin 7's own component hierarchy
+             (AbstractClientConnector -> AbstractComponent -> AbstractField -> CustomField,
+             and the matching GWT widget chain) exhausts the rule's default limit of 5
+             before any add-on code exists, so every class here trips it for reasons this
+             project cannot change. Tuning the rule's max/filteredClasses parameters needs
+             a custom quality profile, which the free SonarQube Cloud plan does not offer,
+             so the rule is disabled here instead; see docs/code-quality.md. -->
+        <!-- java:S1604 suggests replacing anonymous classes with lambdas. Sonar
+             analyses at Java 8+, but org.vaadin.tokenfield.client is recompiled by
+             the bundled GWT 2.7 compiler (Vaadin 7.7.x), which caps source level at
+             Java 7 and rejects lambdas outright, so that package must keep its
+             anonymous classes; see docs/code-quality.md. -->
+        <sonar.issue.ignore.multicriteria>s110,s1604</sonar.issue.ignore.multicriteria>
+        <sonar.issue.ignore.multicriteria.s110.ruleKey>java:S110</sonar.issue.ignore.multicriteria.s110.ruleKey>
+        <sonar.issue.ignore.multicriteria.s110.resourceKey>**/*.java</sonar.issue.ignore.multicriteria.s110.resourceKey>
+        <sonar.issue.ignore.multicriteria.s1604.ruleKey>java:S1604</sonar.issue.ignore.multicriteria.s1604.ruleKey>
+        <sonar.issue.ignore.multicriteria.s1604.resourceKey>**/client/**</sonar.issue.ignore.multicriteria.s1604.resourceKey>
     </properties>
 
     <organization>
@@ -263,8 +288,8 @@
                     <version>${spotbugs.plugin.version}</version>
                     <configuration>
                         <!-- Deliberately not bound to a lifecycle phase: `mvn verify`
-                             stays the fast build/test loop, and the code-quality
-                             workflow invokes spotbugs:check explicitly. -->
+                             stays the fast build/test loop, and the build workflow
+                             invokes spotbugs:check explicitly as an earlier step. -->
                         <effort>Max</effort>
                         <!-- Default "Medium" threshold: the add-on is clean at it today,
                              so it can fail the check. The remaining Low-priority

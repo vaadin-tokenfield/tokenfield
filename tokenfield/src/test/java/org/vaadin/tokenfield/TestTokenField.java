@@ -6,7 +6,6 @@ import com.vaadin.ui.Component;
 import com.vaadin.ui.Layout;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -112,9 +111,8 @@ public class TestTokenField extends TokenField {
     /** Returns all layout components in their current order. */
     public List<Component> getLayoutComponents() {
         List<Component> result = new ArrayList<Component>();
-        Iterator<Component> it = layout.getComponentIterator();
-        while (it.hasNext()) {
-            result.add(it.next());
+        for (Component component : layout) {
+            result.add(component);
         }
         return result;
     }

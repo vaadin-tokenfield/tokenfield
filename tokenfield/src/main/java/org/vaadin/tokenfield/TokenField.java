@@ -106,7 +106,7 @@ import com.vaadin.ui.themes.Reindeer;
  * </p>
  * 
  */
-public class TokenField extends CustomField implements Container.Editor {
+public class TokenField extends CustomField<Set<?>> implements Container.Editor {
 
     private static final long serialVersionUID = -4718188396491718742L;
 
@@ -155,7 +155,7 @@ public class TokenField extends CustomField implements Container.Editor {
     /**
      * Maps the tokenId (itemId) to the token button
      */
-    protected LinkedHashMap<Object, Button> buttons = new LinkedHashMap<Object, Button>();
+    protected LinkedHashMap<Object, Button> buttons = new LinkedHashMap<>();
 
     protected boolean rememberNewTokens = true;
 
@@ -248,7 +248,7 @@ public class TokenField extends CustomField implements Container.Editor {
         cb.setImmediate(true);
         cb.setNewItemsAllowed(true);
         cb.setNullSelectionAllowed(false);
-        cb.addListener(new ComboBox.ValueChangeListener() {
+        cb.addValueChangeListener(new ComboBox.ValueChangeListener() {
 
             private static final long serialVersionUID = 4370326413130922134L;
 
@@ -291,7 +291,6 @@ public class TokenField extends CustomField implements Container.Editor {
         if (cb.addItem(getTokenCaption(tokenId)) != null) {
             // Sets the caption property, if used
             if (getTokenCaptionPropertyId() != null) {
-
                 cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
                         .setValue(tokenId);
 
@@ -324,24 +323,23 @@ public class TokenField extends CustomField implements Container.Editor {
      * 
      * @see org.vaadin.tokenfield.CustomField#setInternalValue(java.lang.Object)
      */
-    protected void setInternalValue(Object newValue) {
-
-        Set<Object> vals = (Set<Object>) newValue;
+    @Override
+    protected void setInternalValue(Set<?> newValue) {
         Set<Object> old = buttons.keySet();
 
         super.setInternalValue(newValue);
 
         if (old == null) {
-            old = new HashSet<Object>();
+            old = new HashSet<>();
         }
 
-        if (vals == null) {
-            vals = new HashSet<Object>();
+        if (newValue == null) {
+            newValue = new HashSet<>();
         }
 
-        Set<Object> remove = new HashSet<Object>(old);
-        Set<Object> add = new HashSet<Object>(vals);
-        remove.removeAll(vals);
+        Set<Object> remove = new HashSet<>(old);
+        Set<Object> add = new HashSet<>(newValue);
+        remove.removeAll(newValue);
         add.removeAll(old);
 
         for (Object tokenId : remove) {
@@ -396,7 +394,7 @@ public class TokenField extends CustomField implements Container.Editor {
     private void addTokenButton(final Object val) {
         Button b = new Button();
         configureTokenButton(val, b);
-        b.addListener(new Button.ClickListener() {
+        b.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = -1943432188848347317L;
 
             public void buttonClick(ClickEvent event) {
@@ -437,14 +435,14 @@ public class TokenField extends CustomField implements Container.Editor {
      *            the token to add
      */
     public void addToken(Object tokenId) {
-        Set<Object> set = (Set<Object>) getValue();
+        Set<?> set = getValue();
         if (set == null) {
-            set = new LinkedHashSet<Object>();
+            set = new LinkedHashSet<>();
         }
         if (set.contains(tokenId)) {
             return;
         }
-        HashSet<Object> newSet = new LinkedHashSet<Object>(set);
+        HashSet<Object> newSet = new LinkedHashSet<>(set);
         newSet.add(tokenId);
         setValue(newSet);
     }
@@ -460,8 +458,8 @@ public class TokenField extends CustomField implements Container.Editor {
      *            the token to remove
      */
     public void removeToken(Object tokenId) {
-        Set<Object> set = (Set<Object>) getValue();
-        LinkedHashSet<Object> newSet = new LinkedHashSet<Object>(set);
+        Set<?> set = getValue();
+        LinkedHashSet<Object> newSet = new LinkedHashSet<>(set);
         newSet.remove(tokenId);
 
         setValue(newSet);
@@ -471,7 +469,6 @@ public class TokenField extends CustomField implements Container.Editor {
         Button button = buttons.get(tokenId);
         layout.removeComponent(button);
         buttons.remove(tokenId);
-
     }
 
     /**
@@ -551,6 +548,7 @@ public class TokenField extends CustomField implements Container.Editor {
         }
     }
 
+    @Override
     public void setReadOnly(boolean readOnly) {
         if (readOnly == isReadOnly()) {
             return;
@@ -661,6 +659,7 @@ public class TokenField extends CustomField implements Container.Editor {
      * 
      * @see org.vaadin.tokenfield.CustomField#focus()
      */
+    @Override
     public void focus() {
         cb.focus();
     }
@@ -732,7 +731,7 @@ public class TokenField extends CustomField implements Container.Editor {
      * 
      * @return a collection of all tokenIds in the container
      */
-    public Collection getTokenIds() {
+    public Collection<?> getTokenIds() {
         return cb.getItemIds();
     }
 
@@ -741,6 +740,7 @@ public class TokenField extends CustomField implements Container.Editor {
      * 
      * @see org.vaadin.tokenfield.CustomField#getTabIndex()
      */
+    @Override
     public int getTabIndex() {
         return cb.getTabIndex();
     }
@@ -870,6 +870,7 @@ public class TokenField extends CustomField implements Container.Editor {
     /**
      * @see AbstractField#setTabIndex(int)
      */
+    @Override
     public void setTabIndex(int tabIndex) {
         cb.setTabIndex(tabIndex);
     }
@@ -880,8 +881,9 @@ public class TokenField extends CustomField implements Container.Editor {
      * @see org.vaadin.tokenfield.CustomField#getType()
      */
     @Override
-    public Class<?> getType() {
-        return Set.class;
+    public Class<Set<?>> getType() {
+        //noinspection unchecked
+        return (Class<Set<?>>) (Class<?>)Set.class;
     }
 
     @Override

@@ -133,20 +133,25 @@ SpotBugs and PMD gate every push and pull request, and run the same way locally:
 ```
 
 See [docs/code-quality.md](docs/code-quality.md) for what they do and don't fail on, how to
-suppress a false positive, and how to switch on the (currently inert) SonarQube analysis.
+suppress a false positive, and how SonarQube analysis is configured.
 
 ## Continuous integration
 
-Two workflows, both on every push to any branch and on pull requests from forks — a branch in this
-repository is already covered by its push, so pull requests from it aren't built twice:
+One workflow, [`build.yml`](.github/workflows/build.yml), on every push to any branch and on pull
+requests from forks — a branch in this repository is already covered by its push, so pull requests
+from it aren't built twice. Four jobs:
 
-- **[Build & Publish with Maven](.github/workflows/build.yml)** — `mvn verify`: unit tests, the
-  coverage floor and the browser BDD suite. Publishing is limited to `main`, which deploys a
-  snapshot to GitHub Packages, and `v*` tags, which publish a release to Maven Central and attach
-  the Directory add-on ZIP to the run. A failing build uploads the surefire/failsafe reports, the
-  Cucumber report and the Playwright traces of failed scenarios as a `test-reports` artifact.
-- **[Code Quality](.github/workflows/code-quality.yml)** — SpotBugs and PMD, plus an opt-in
-  SonarQube job (see above).
+- **static-analysis** — SpotBugs and PMD (see above).
+- **build** — `mvn verify`: unit tests, the coverage floor and the browser BDD suite. A failing run
+  uploads the surefire/failsafe reports, the Cucumber report and the Playwright traces of failed
+  scenarios as a `test-reports` artifact; a `v*` tag also uploads the Directory add-on ZIP.
+- **sonar** — SonarQube analysis (see above), skipped without a `SONAR_TOKEN` secret.
+- **publish** — needs all three of the above to succeed; deploys a snapshot to GitHub Packages on
+  `main`, or publishes a release to Maven Central on `v*` tags. Any static-analysis finding, build
+  failure, or failed Sonar quality gate blocks it.
+
+The first three jobs run in parallel rather than one after another, since none of them depends on
+another's output.
 
 ## Credits
 

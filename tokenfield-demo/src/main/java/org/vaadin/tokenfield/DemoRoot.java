@@ -28,7 +28,6 @@ import com.vaadin.data.Property.ValueChangeEvent;
 import com.vaadin.data.Property.ValueChangeListener;
 import com.vaadin.data.util.BeanItem;
 import com.vaadin.data.util.BeanItemContainer;
-import com.vaadin.data.util.IndexedContainer;
 import com.vaadin.server.VaadinRequest;
 import com.vaadin.shared.ui.combobox.FilteringMode;
 import com.vaadin.ui.Alignment;
@@ -100,7 +99,7 @@ public class DemoRoot extends UI {
                         String[] tokens = ((String) tokenId).split(",");
                         for (String token : tokens) {
                             token = token.trim();
-                            if (token.length() > 0) {
+                            if (!token.isEmpty()) {
                                 super.onTokenInput(token);
                             }
                         }
@@ -108,10 +107,10 @@ public class DemoRoot extends UI {
 
                     @Override
                     protected void rememberToken(String tokenId) {
-                        String[] tokens = ((String) tokenId).split(",");
+                        String[] tokens = tokenId.split(",");
                         for (String token : tokens) {
                             token = token.trim();
-                            if (token.length() > 0) {
+                            if (!token.isEmpty()) {
                                 super.rememberToken(token);
                             }
                         }
@@ -153,6 +152,7 @@ public class DemoRoot extends UI {
                     private static final long serialVersionUID = 5530375996928514871L;
 
                     // dialog if not in 'address book', otherwise just add
+                    @Override
                     protected void onTokenInput(Object tokenId) {
                         Set<Object> set = (Set<Object>) getValue();
                         Contact c = new Contact("", tokenId.toString());
@@ -176,17 +176,20 @@ public class DemoRoot extends UI {
                     }
 
                     // show confirm dialog
+                    @Override
                     protected void onTokenClick(final Object tokenId) {
                         getUI().addWindow(
                                 new RemoveWindow((Contact) tokenId, this));
                     }
 
                     // just delete, no confirm
+                    @Override
                     protected void onTokenDelete(Object tokenId) {
                         this.removeToken(tokenId);
                     }
 
                     // custom caption + style if not in 'address book'
+                    @Override
                     protected void configureTokenButton(Object tokenId,
                             Button button) {
                         super.configureTokenButton(tokenId, button);
@@ -407,7 +410,7 @@ public class DemoRoot extends UI {
 
                 public void buttonClick(ClickEvent event) {
                     if (contact.getEmail() == null
-                            || contact.getEmail().length() < 1) {
+                            || contact.getEmail().isEmpty()) {
                         contact.setEmail(contact.getName());
                     }
                     f.addToken(contact);
@@ -424,7 +427,7 @@ public class DemoRoot extends UI {
 
                         public void buttonClick(ClickEvent event) {
                             if (contact.getEmail() == null
-                                    || contact.getEmail().length() < 1) {
+                                    || contact.getEmail().isEmpty()) {
                                 contact.setEmail(contact.getName());
                             }
                             ((BeanItemContainer) f.getContainerDataSource())
@@ -456,8 +459,8 @@ public class DemoRoot extends UI {
         HashSet<String> log = new HashSet<String>();
         Random r = new Random(5);
         for (int i = 0; i < 20;) {
-            String fn = firstnames[(int) (r.nextDouble() * firstnames.length)];
-            String ln = lastnames[(int) (r.nextDouble() * lastnames.length)];
+            String fn = firstnames[(r.nextInt(firstnames.length))];
+            String ln = lastnames[(r.nextInt(lastnames.length))];
             String name = fn + " " + ln;
             String email = fn.toLowerCase() + "." + ln.toLowerCase()
                     + "@example.com";

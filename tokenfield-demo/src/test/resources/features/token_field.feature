@@ -81,14 +81,14 @@ Feature: TokenField everyday usage
 
   Scenario: The seeded contacts are shown with their name and email
     Given the "Address book" example
-    Then a token chip labeled "Nicole Smith <nicole.smith@example.com>" appears in the field
-    And a token chip labeled "Robert McGoff <robert.mcgoff@example.com>" appears in the field
+    Then a token chip labeled "Linus Adams <linus.adams@example.com>" appears in the field
+    And a token chip labeled "Robert Jones <robert.jones@example.com>" appears in the field
     And a token chip labeled "thatnewguy@example.com <thatnewguy@example.com>" appears in the field
 
   Scenario: A token added off the address book is visually marked as such
     Given the "Address book" example
     Then the "thatnewguy@example.com" token is marked as not part of the address book
-    And the "Nicole Smith" token is not marked as off-book
+    And the "Linus Adams" token is not marked as off-book
 
   Scenario: Typing part of a name filters the suggestions to matches
     Given the "Address book" example
@@ -97,8 +97,8 @@ Feature: TokenField everyday usage
 
   Scenario: Selecting a suggested contact adds it as a token immediately
     Given the "Address book" example
-    When I type "Fielding" and pick the matching suggestion
-    Then a token chip labeled "Sarah Fielding" appears in the field
+    When I type "Einstein" and pick the matching suggestion
+    Then a token chip labeled "Nathan Einstein" appears in the field
     And no confirmation window is shown
 
   Scenario: Entering an address not in the address book asks whether to keep it
@@ -126,19 +126,19 @@ Feature: TokenField everyday usage
 
   Scenario: Cancelling removal of an existing contact's token keeps it
     Given the "Address book" example
-    When I click the "Nicole Smith" token chip
-    Then a "Remove Nicole Smith" window opens
-    When I choose "Cancel" in the "Remove Nicole Smith" window
-    Then the "Remove Nicole Smith" window closes
-    And a token chip labeled "Nicole Smith" appears in the field
+    When I click the "Linus Adams" token chip
+    Then a "Remove Linus Adams" window opens
+    When I choose "Cancel" in the "Remove Linus Adams" window
+    Then the "Remove Linus Adams" window closes
+    And a token chip labeled "Linus Adams" appears in the field
 
   Scenario: Confirming removal of an existing contact's token deletes it
     Given the "Address book" example
-    When I click the "Robert McGoff" token chip
-    Then a "Remove Robert McGoff" window opens
-    When I choose "Remove" in the "Remove Robert McGoff" window
-    Then the "Remove Robert McGoff" window closes
-    And the "Robert McGoff" token is removed from the field
+    When I click the "Robert Jones" token chip
+    Then a "Remove Robert Jones" window opens
+    When I choose "Remove" in the "Remove Robert Jones" window
+    Then the "Remove Robert Jones" window closes
+    And the "Robert Jones" token is removed from the field
 
   # The client-side onTokenDelete override for this panel bypasses
   # RemoveWindow entirely for the Backspace path.
@@ -147,8 +147,8 @@ Feature: TokenField everyday usage
     When the input is empty and I press Backspace
     Then no confirmation window is shown
     And the "thatnewguy@example.com" token is removed from the field
-    And a token chip labeled "Nicole Smith" appears in the field
-    And a token chip labeled "Robert McGoff" appears in the field
+    And a token chip labeled "Linus Adams" appears in the field
+    And a token chip labeled "Robert Jones" appears in the field
 
   # ---------------------------------------------------------------------
   # Data binding and buffering — TokenField shares its item container with

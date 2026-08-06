@@ -27,14 +27,9 @@ public abstract class TokenComboBox extends ComboBox {
 
     protected TokenField.InsertPosition insertPosition;
 
-    private TokenFieldServerRpc rpc = new TokenFieldServerRpc() {
-        public void deleteToken() {
-            onDelete();
-        }
-    };
-
-    public TokenComboBox(TokenField.InsertPosition insertPosition) {
+    protected TokenComboBox(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
+        TokenFieldServerRpc rpc = this::onDelete;
         registerRpc(rpc);
     }
 
@@ -49,9 +44,9 @@ public abstract class TokenComboBox extends ComboBox {
 
     public void setTokenInsertPosition(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
-        requestRepaint();
+        markAsDirty();
     }
 
-    abstract protected void onDelete();
+    protected abstract void onDelete();
 
 }
