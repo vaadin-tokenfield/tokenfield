@@ -92,10 +92,22 @@ final class DemoPage {
         waitForVaadin();
     }
 
+    /**
+     * Presses {@code key} with the caret in an empty input — the gesture that
+     * removes the last token.
+     *
+     * <p>The input is cleared by assigning {@code value} rather than with
+     * {@code fill("")}: Playwright implements "fill with an empty string" as a
+     * synthetic <em>Delete</em> keypress, which this field reads as a real
+     * token-delete gesture. That injected Delete is invisible while the widget
+     * treats Delete as a no-op, but it silently removes an extra token as soon
+     * as the insert position is AFTER. Assigning the value leaves the DOM in
+     * the same state without manufacturing a keystroke.
+     */
     void pressInEmptyInput(int index, String key) {
         Locator in = input(index);
         in.click();
-        in.fill("");
+        in.evaluate("el => { el.value = ''; }");
         in.press(key);
         waitForVaadin();
     }

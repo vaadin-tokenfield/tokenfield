@@ -20,6 +20,7 @@ import org.vaadin.tokenfield.client.ui.VTokenField.DeleteListener;
 
 import com.google.gwt.core.client.GWT;
 import com.vaadin.client.communication.RpcProxy;
+import com.vaadin.client.communication.StateChangeEvent;
 import com.vaadin.client.ui.combobox.ComboBoxConnector;
 import com.vaadin.shared.ui.Connect;
 
@@ -28,8 +29,6 @@ public class TokenFieldConnector extends ComboBoxConnector {
 
     private final TokenFieldServerRpc rpc = RpcProxy.create(
             TokenFieldServerRpc.class, this);
-
-    protected boolean after = false;
 
     @Override
     protected void init() {
@@ -42,6 +41,20 @@ public class TokenFieldConnector extends ComboBoxConnector {
             }
         });
 
+    }
+
+    @Override
+    public TokenFieldState getState() {
+        return (TokenFieldState) super.getState();
+    }
+
+    @Override
+    public void onStateChanged(StateChangeEvent stateChangeEvent) {
+        super.onStateChanged(stateChangeEvent);
+        // Without this the widget never learns the insert position, and its
+        // delete-key branch (DELETE for AFTER, BACKSPACE for BEFORE) is stuck
+        // on the BEFORE half.
+        getWidget().after = getState().after;
     }
 
     @Override

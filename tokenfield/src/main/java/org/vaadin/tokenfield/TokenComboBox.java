@@ -16,9 +16,8 @@
 package org.vaadin.tokenfield;
 
 import org.vaadin.tokenfield.client.ui.TokenFieldServerRpc;
+import org.vaadin.tokenfield.client.ui.TokenFieldState;
 
-import com.vaadin.server.PaintException;
-import com.vaadin.server.PaintTarget;
 import com.vaadin.ui.ComboBox;
 
 public abstract class TokenComboBox extends ComboBox {
@@ -29,22 +28,29 @@ public abstract class TokenComboBox extends ComboBox {
 
     protected TokenComboBox(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
+        getState().after = isAfter();
         TokenFieldServerRpc rpc = this::onDelete;
         registerRpc(rpc);
     }
 
     @Override
-    public void paintContent(PaintTarget target) throws PaintException {
-        super.paintContent(target);
-        target.addVariable(this, "del", false);
-        if (insertPosition == TokenField.InsertPosition.AFTER) {
-            target.addAttribute("after", true);
-        }
+    protected TokenFieldState getState() {
+        return (TokenFieldState) super.getState();
+    }
+
+    @Override
+    protected TokenFieldState getState(boolean markAsDirty) {
+        return (TokenFieldState) super.getState(markAsDirty);
     }
 
     public void setTokenInsertPosition(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
-        markAsDirty();
+        // Writing shared state already marks the connector dirty.
+        getState().after = isAfter();
+    }
+
+    private boolean isAfter() {
+        return insertPosition == TokenField.InsertPosition.AFTER;
     }
 
     protected abstract void onDelete();
