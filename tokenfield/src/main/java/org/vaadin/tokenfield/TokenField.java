@@ -685,11 +685,17 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @return the caption
      */
     public String getTokenCaption(Object tokenId) {
-        if (cb.containsId(tokenId)) {
-            return cb.getItemCaption(tokenId);
-        } else {
+        // Asking the ComboBox directly rather than guarding on containsId: an
+        // explicitly set caption is kept by AbstractSelect independently of
+        // container membership, so a containsId guard would discard it
+        // whenever the token buttons are built before the container data
+        // source is set. getItemCaption yields an empty string when it has
+        // nothing to offer, which is when the id string is used instead.
+        String caption = cb.getItemCaption(tokenId);
+        if (caption == null || caption.isEmpty()) {
             return "" + tokenId;
         }
+        return caption;
     }
 
     /**
