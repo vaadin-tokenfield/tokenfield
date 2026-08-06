@@ -41,6 +41,21 @@ public class TokenEntrySteps {
         world.demo().pressInEmptyInput(world.panel(), "Backspace");
     }
 
+    @When("the input is empty and I press Delete")
+    public void deleteOnEmptyInput() {
+        world.demo().pressInEmptyInput(world.panel(), "Delete");
+    }
+
+    /**
+     * Backspace with text already in the input — the editing case, as opposed
+     * to {@link #backspaceOnEmptyInput()}. Kept separate so the two never share
+     * a step: only the empty-input one is a token delete.
+     */
+    @When("I press Backspace")
+    public void backspaceWhileTyping() {
+        world.demo().input(world.panel()).press("Backspace");
+    }
+
     @When("I start typing {string}")
     public void startTyping(String text) {
         world.demo().type(world.panel(), text);
@@ -90,6 +105,24 @@ public class TokenEntrySteps {
         assertThat(world.demo().suggestionPopup()).isVisible();
         assertThat(world.demo().suggestions()
                 .filter(new Locator.FilterOptions().setHasText(text))).hasCount(1);
+    }
+
+    /**
+     * Asserts the suggestion popup is absent, and stays absent.
+     *
+     * <p>A plain negative assertion is not enough here: Playwright's retrying
+     * assertions pass the moment the condition holds, so "popup not visible"
+     * would pass instantly on a popup that is still on its way. The popup
+     * arrives via a server round-trip, so this waits for the client to fall
+     * idle, then re-checks after a short settle.
+     */
+    @Then("no suggestion list is shown")
+    public void noSuggestionList() {
+        world.demo().waitForVaadin();
+        assertThat(world.demo().suggestionPopup()).hasCount(0);
+        world.demo().page().waitForTimeout(500);
+        world.demo().waitForVaadin();
+        assertThat(world.demo().suggestionPopup()).hasCount(0);
     }
 
     @Then("the input is empty again, ready for the next value")
