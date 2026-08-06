@@ -38,6 +38,15 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - `RunCucumberIT` also runs directly from an IDE, without the Maven-managed server: `DemoServer` boots
   an embedded Jetty on a free port when `it.baseUrl` isn't set by failsafe. Requires one `mvn package`
   to build the widgetset first; see the README's "Running the browser tests from an IDE" section.
+- CI now builds every branch, not just `main` and pull requests, so work in progress is verified
+  before it reaches a pull request. Publishing stays limited to `main` (snapshots) and `v*` tags
+  (releases), and the build job is capped at 30 minutes so a hung browser or server fails the run
+  instead of occupying a runner. Test reports, the Cucumber HTML report and the Playwright traces of
+  failed scenarios are uploaded as an artifact when a build fails.
+- Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
+  (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
+  locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert
+  until a `SONAR_TOKEN` secret is configured. See [docs/code-quality.md](docs/code-quality.md).
 
 ### Fixed
 

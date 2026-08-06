@@ -38,6 +38,28 @@
         <maven.deploy.skip>true</maven.deploy.skip>
 
         <project.scm.id>github</project.scm.id>
+
+        <!--
+            Static analysis. Both plugins are pinned to their last releases that
+            still run on Java 8, which is the JDK this project builds with; see
+            .github/workflows/code-quality.yml and the README's "Code quality"
+            section for how they are run.
+        -->
+        <spotbugs.plugin.version>4.7.3.6</spotbugs.plugin.version>
+        <pmd.plugin.version>3.21.2</pmd.plugin.version>
+
+        <!--
+            SonarQube analysis (Sonar's own scanner needs Java 17+, so it runs in
+            its own workflow job, not in the Java 8 build). Inert until a
+            SONAR_TOKEN secret exists; the key/organization below must match the
+            project created in SonarQube Cloud (or your own SonarQube server).
+        -->
+        <sonar.projectKey>vaadin-tokenfield_tokenfield</sonar.projectKey>
+        <sonar.organization>vaadin-tokenfield</sonar.organization>
+        <!-- GWT client-side code is compiled to JavaScript and exercised by the
+             browser suite, not by unit tests; keep it out of the coverage figure
+             Sonar reports, exactly as the JaCoCo check already does. -->
+        <sonar.coverage.exclusions>**/client/**</sonar.coverage.exclusions>
     </properties>
 
     <organization>
@@ -233,6 +255,43 @@
                     <artifactId>central-publishing-maven-plugin</artifactId>
                     <version>0.11.0</version>
                     <extensions>true</extensions>
+                </plugin>
+
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>${spotbugs.plugin.version}</version>
+                    <configuration>
+                        <!-- Deliberately not bound to a lifecycle phase: `mvn verify`
+                             stays the fast build/test loop, and the code-quality
+                             workflow invokes spotbugs:check explicitly. -->
+                        <effort>Max</effort>
+                        <!-- Default "Medium" threshold: the add-on is clean at it today,
+                             so it can fail the check. The remaining Low-priority
+                             findings (serialVersionUID on inner listener classes and
+                             friends) are inherited from the original add-on and are
+                             reported by `-Dspotbugs.threshold=Low`, not enforced. -->
+                        <threshold>Medium</threshold>
+                        <xmlOutput>true</xmlOutput>
+                        <excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs-excludes.xml</excludeFilterFile>
+                    </configuration>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-pmd-plugin</artifactId>
+                    <version>${pmd.plugin.version}</version>
+                    <configuration>
+                        <targetJdk>${maven.compiler.target}</targetJdk>
+                        <!-- Fail on PMD priority 1-2 (correctness-level) findings only.
+                             The default ruleset's style advice (priority 3+) is
+                             reported for review instead of enforced, so turning this
+                             gate on doesn't require reformatting inherited code. -->
+                        <failurePriority>2</failurePriority>
+                        <printFailingErrors>true</printFailingErrors>
+                        <!-- No maven-jxr-plugin report in this build to link to -->
+                        <linkXRef>false</linkXRef>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>

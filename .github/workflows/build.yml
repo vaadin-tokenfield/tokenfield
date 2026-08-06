@@ -4,15 +4,31 @@ name: Build & Publish with Maven
 
 on:
   push:
-    branches: [main]
+    # Every branch is built, so work in progress is verified before it reaches a
+    # pull request; only main and v* tags publish anything (see the steps below).
+    branches: ['**']
     tags: ['v*']
   pull_request:
-    branches: [ "main" ]
   workflow_dispatch:
+
+# Superseded branch builds are pointless once a newer commit is pushed; main and
+# release tags always run to completion, since they publish artifacts.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v') }}
 
 jobs:
   build:
+    # Branches in this repository are already built by the push event above;
+    # the pull_request event is what covers pull requests from forks, whose
+    # commits never land here as a push.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+
     runs-on: ubuntu-latest
+    # The browser suite is the long pole of the build; cap the job so a hung
+    # browser or server fails the run in minutes instead of occupying a runner
+    # for the six-hour default.
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write
@@ -62,12 +78,28 @@ jobs:
       - name: Build
         run: mvn --batch-mode --no-transfer-progress --update-snapshots verify
 
+      # Surefire/failsafe reports, the Cucumber HTML report and the Playwright
+      # traces of failed scenarios, which are otherwise lost with the runner.
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+            tokenfield-demo/target/cucumber/**
+            tokenfield-demo/target/playwright/**
+          if-no-files-found: ignore
+          retention-days: 14
+
       # Snapshots only: releases publish to Maven Central via the "release" profile,
       # not to GitHub Packages (which requires an authenticated PAT and can't serve
-      # as the Directory's public Maven coordinate).
+      # as the Directory's public Maven coordinate). Branch builds verify only —
+      # a snapshot published from a branch would overwrite main's.
       - name: Deploy snapshot
-        if: steps.ver.outputs.release == 'false'
-        run: mvn --batch-mode --no-transfer-progress -DskipTests deploy
+        if: steps.ver.outputs.release == 'false' && github.ref == 'refs/heads/main'
+        run: mvn --batch-mode --no-transfer-progress -DskipTests -DskipITs=true deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -98,7 +130,7 @@ jobs:
 
       - name: Publish release to Maven Central
         if: steps.ver.outputs.release == 'true'
-        run: mvn --batch-mode --no-transfer-progress -Prelease -DskipTests deploy
+        run: mvn --batch-mode --no-transfer-progress -Prelease -DskipTests -DskipITs=true deploy
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
