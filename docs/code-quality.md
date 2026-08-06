@@ -69,7 +69,32 @@ reason the job is opt-in rather than on by default.
 The job analyses the `tokenfield` module only: it is the code that ships, and unlike
 `tokenfield-demo` its build has no GWT step that would need Java 8 (Sonar's scanner requires Java
 17+, so that job runs on Java 21 while everything else builds on Java 8). It stops at the `test`
-phase, which is enough to produce the JaCoCo XML report Sonar reads coverage from.
+phase, which is enough to run the tests under the JaCoCo agent.
+
+### Test coverage
+
+Sonar does not measure coverage itself; it imports
+[JaCoCo's XML report](https://docs.sonarsource.com/sonarqube-cloud/analyzing-source-code/test-coverage/java-test-coverage/),
+and only the XML one — the binary `jacoco.exec` is not read. Three things make that work here, and
+all three are load-bearing:
+
+1. `jacoco:report` writes `tokenfield/target/site/jacoco/jacoco.xml` (XML is one of the goal's
+   default formats), bound to the `test` phase.
+2. `sonar.coverage.jacoco.xmlReportPaths` in [`tokenfield/pom.xml`](../tokenfield/pom.xml) points at
+   that file, via the same `${project.reporting.outputDirectory}/jacoco` expression the report goal
+   defaults to, so the two can't drift apart.
+3. The workflow runs `mvn test` and the analysis as separate steps with a
+   `test -s .../jacoco.xml` check between them — a report that stopped being generated fails the job
+   there, instead of quietly publishing an analysis that shows no coverage.
+
+`sonar.coverage.exclusions` in the parent POM keeps `**/client/**` out of the coverage figure, for
+the same reason the JaCoCo check excludes it: GWT client-side code only runs compiled to JavaScript
+in a browser, so no JVM test can cover it.
+
+Note that this is unit-test coverage only. The Cucumber/Playwright suite exercises the add-on
+server-side too, but its coverage isn't measured: the demo runs inside `jetty-maven-plugin`, so
+attributing that execution to the add-on's classes would mean attaching the JaCoCo agent to the
+Jetty JVM and merging a second `.exec` file into the report.
 
 ### GitHub code scanning (CodeQL)
 
