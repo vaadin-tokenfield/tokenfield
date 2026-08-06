@@ -124,6 +124,30 @@ Then run/debug any `*IT` class straight from the IDE. Useful VM options:
 - Set the run configuration's working directory to `tokenfield-demo` so Playwright traces land in
   `tokenfield-demo/target/playwright` as expected.
 
+### Code quality
+
+SpotBugs and PMD gate every push and pull request, and run the same way locally:
+
+```shell
+./mvnw test-compile spotbugs:check pmd:check
+```
+
+See [docs/code-quality.md](docs/code-quality.md) for what they do and don't fail on, how to
+suppress a false positive, and how to switch on the (currently inert) SonarQube analysis.
+
+## Continuous integration
+
+Two workflows, both on every push to any branch and on pull requests from forks — a branch in this
+repository is already covered by its push, so pull requests from it aren't built twice:
+
+- **[Build & Publish with Maven](.github/workflows/build.yml)** — `mvn verify`: unit tests, the
+  coverage floor and the browser BDD suite. Publishing is limited to `main`, which deploys a
+  snapshot to GitHub Packages, and `v*` tags, which publish a release to Maven Central and attach
+  the Directory add-on ZIP to the run. A failing build uploads the surefire/failsafe reports, the
+  Cucumber report and the Playwright traces of failed scenarios as a `test-reports` artifact.
+- **[Code Quality](.github/workflows/code-quality.yml)** — SpotBugs and PMD, plus an opt-in
+  SonarQube job (see above).
+
 ## Credits
 
 Originally created by Marc Englund. See [NOTICE](NOTICE.txt) for the full attribution required by the

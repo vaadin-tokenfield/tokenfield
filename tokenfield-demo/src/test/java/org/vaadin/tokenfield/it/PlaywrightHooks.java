@@ -54,6 +54,13 @@ public class PlaywrightHooks {
     @After
     public void closeDemo(Scenario scenario) {
         BrowserContext context = world.context();
+        if (context == null) {
+            // openDemo() failed before it got a context — launching the browser,
+            // or reaching the demo. Cucumber runs @After anyway; without this,
+            // the hook's own NullPointerException replaces that real failure as
+            // the reported cause.
+            return;
+        }
         if (scenario.isFailed()) {
             context.tracing().stop(new Tracing.StopOptions().setPath(tracePathFor(scenario)));
         } else {
