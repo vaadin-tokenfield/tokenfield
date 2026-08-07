@@ -121,13 +121,26 @@ The "JPAContainer (issue #15)" panel binds a `TokenField` to a `JPAContainer` ov
 database (`org.vaadin.tokenfield.jpa`, `tokenfield-demo/src/main/resources/META-INF/persistence.xml`)
 and sets a token caption property id — the report's three steps exactly.
 
-**The reported symptom does not reproduce.** Typing filters and suggests normally, and no
+**The reported symptom does not reproduce**, on any version combination tried — including the ones
+current when the report was filed (2014-05-19: Vaadin 7.2.0 was 5 days old, 7.1.15 was the previous
+7.1, and JPAContainer 3.1.0 was the newest release). Typing filters and suggests normally, and no
 `IllegalStateException: A connector should not be marked as dirty while a response is being written`
-reaches the server log. Nor does it on JPAContainer 3.1.0, the release a May-2014 reporter would have
-been on. That scenario runs in the default suite as the regression test pinning it.
+reaches the server log:
 
-**A different, real crash does.** Commit a typed token — type a value and press Enter — and the
-request dies server side:
+| Vaadin | JPAContainer | Typing (the report's steps) | Committing a typed token |
+|---|---|---|---|
+| 7.1.15 (2014-05-02) | 3.1.0 | works | fails, see below |
+| 7.2.0 (2014-05-14) | 3.1.0 | works | fails |
+| 7.7.17 (current) | 3.2.0 | works | fails |
+
+That scenario runs in the default suite as the regression test pinning it. (Reproducing the old
+combinations needs era-appropriate scaffolding the project no longer carries — `vaadin-bom` starts at
+7.4.0, and `AppWidgetset` auto-generation at 7.4 — so those runs were done with local, uncommitted
+POM and `web.xml` changes and JPAContainer built from its own git tags.)
+
+**A different, real crash does — tracked separately as
+[#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24).** Commit a typed token — type a
+value and press Enter — and the request dies server side:
 
 ```
 javax.persistence.PersistenceException: ... The object [Nathan Einstein], of class
@@ -140,9 +153,9 @@ javax.persistence.PersistenceException: ... The object [Nathan Einstein], of cla
 
 That is a `TokenField` bug, not a JPAContainer one: `getTokenCaption` passes the raw typed `String`
 to `containsId`, and `rememberToken` passes it to `addItem`, but a `JPAContainer` is keyed by entity
-id. It reproduces on 3.1.0 and 3.2.0 alike. Picking an existing suggestion instead of typing a whole
-value works, because then the ComboBox supplies a real entity id — the two scenarios beside the
-`@issue-15` one pin exactly that boundary.
+id. It reproduces on every row of the table above, so it is not a regression. Picking an existing
+suggestion instead of typing a whole value works, because then the ComboBox supplies a real entity
+id — the two scenarios beside the `@issue-15` one pin exactly that boundary.
 
 **Where the reported symptom probably came from.** JPAContainer had this, in `JPAContainerItem`:
 
@@ -160,6 +173,13 @@ in [`cd0d3d0`](https://github.com/vaadin/jpacontainer/commit/cd0d3d0) (2013-10-2
 #12155), but the previous release 3.1.0 was already out (2013-08) and the next, 3.2.0, only landed in
 2014-12 — so a report filed in 2014-05 lands squarely in the window where every released JPAContainer
 carried the bug. This project depends on 3.2.0, which has the fix.
+
+That remains a hypothesis: 3.1.0 on Vaadin 7.1.15 and on 7.2.0 did not trigger it here, so whatever
+else the reporter's application did to make those stale listeners fire mid-response is still
+unaccounted for. The panel is the place to try further ideas — an entity provider or buffering mode
+other than the `JPAContainerFactory.make` default (a `CachingMutableLocalEntityProvider`,
+write-through), or a data set larger than one suggestion page so paging and `size()` recounts come
+into play.
 
 ### Running the browser tests from an IDE
 
