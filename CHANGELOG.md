@@ -54,24 +54,16 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   works and is pinned too.
 - A reproduction for [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15),
   `IllegalStateException: A connector should not be marked as dirty while a response is being
-  written`: `TokenFieldMarkAsDirtyWhileWritingResponseTest` (10 tests) in the add-on module. The
-  exception is reachable from `TokenField` on the report's own three steps, and is not specific to
-  `JPAContainer` — a plain `IndexedContainer` fails identically. With a token caption property id set
-  and a filter typed, `ComboBox.paintContent` applies that filter to the container *while Vaadin is
-  writing the response*, so every application listener on the container runs mid-paint; `ComboBox`
-  guards only its own handler, and a listener that touches the `TokenField` reaches an unguarded
-  `markAsDirty()`. Adding or removing a token edits the field's own layout, and detaching a component
-  marks dirty directly instead of through the `getState()` path Vaadin guards, so `addToken`,
-  `removeToken`, `setReadOnly`, `setTokenInsertPosition` and `setInputPrompt` are all fatal during a
-  paint while shared-state setters such as `setCaption` are merely dropped. Plain typing on its own
-  does not crash — on JPAContainer 3.2.0/Vaadin 7.7.17 or on the versions current when the report was
-  filed (JPAContainer 3.1.0 on Vaadin 7.1.15 and 7.2.0) — and stays pinned by a browser scenario in
-  the default suite. See "Bug reproductions" in the README.
-- Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
-  (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
-  locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert
-  until a `SONAR_TOKEN` secret is configured. The Sonar analysis imports unit-test line coverage from
-  JaCoCo's XML report. See [docs/code-quality.md](docs/code-quality.md).
+  written`: `TokenFieldMarkAsDirtyWhileWritingResponseTest` (11 tests) in the add-on module, plus a
+  seventh demo panel, "Container listener", and a browser scenario that drives it through a real
+  request. The exception was reachable from `TokenField` on the report's own three steps, and was not
+  specific to `JPAContainer` — a plain `IndexedContainer` failed identically. With a token caption
+  property id set and a filter typed, `ComboBox.paintContent` applies that filter to the container
+  *while Vaadin is writing the response*, so every application listener on the container runs
+  mid-paint; `ComboBox` guards only its own handler, and a listener that edited the field killed the
+  request. Typing on its own does not crash — on JPAContainer 3.2.0/Vaadin 7.7.17 or on the versions
+  current when the report was filed (JPAContainer 3.1.0 on Vaadin 7.1.15 and 7.2.0) — and stays pinned
+  by its own scenario.
 
 ### Fixed
 
@@ -81,6 +73,22 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Directory ZIP manifest now includes `Vaadin-Widgetsets` and `Vaadin-License-File`.
 - Assembly ZIP build no longer overwrites the JAR as the project's main artifact.
 - Fixed "Layout and InsertPosition" Demo
+- **[#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15)** — editing a `TokenField` while
+  Vaadin is writing the response no longer throws `IllegalStateException: A connector should not be
+  marked as dirty while a response is being written`. That is easy to hit without meaning to: a
+  `ComboBox` with a token caption property id filters through its container from inside its own paint
+  (`ComboBox.getOptionsWithFilter` → `addContainerFilter`), a container reports a filter change as an
+  item set change, and so any application listener on that container runs mid-paint. Neither half of a
+  token change could be made safe in place — `AbstractField` ends every value change with an
+  unconditional `markAsDirty()`, and every layout edit marks the layout dirty — so `TokenField` now
+  holds the change back and applies it from `beforeClientResponse`, before the next response is
+  written. `addToken`, `removeToken`, `setReadOnly` and `setTokenInsertPosition` are safe to call at
+  any time; successive changes coalesce, and the change lands one response later rather than
+  immediately. `setInputPrompt` is the one remaining gap and is pinned by a test: it is `ComboBox`'s
+  own setter and marks dirty by hand, leaving no seam to defer it.
+- Adding a token no longer detaches and re-attaches the input. With the default
+  `InsertPosition.BEFORE`, `addTokenButton` swapped the input out and re-appended it on every token,
+  costing a full repaint of the input each time; the button is now inserted at the input's index.
 
 ## [7.0.1]
 

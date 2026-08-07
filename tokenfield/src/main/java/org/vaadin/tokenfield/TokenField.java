@@ -26,6 +26,7 @@ import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
 import com.vaadin.ui.AbstractField;
+import com.vaadin.ui.AbstractOrderedLayout;
 import com.vaadin.ui.AbstractSelect;
 import com.vaadin.ui.AbstractSelect.ItemCaptionMode;
 import com.vaadin.ui.AbstractSelect.NewItemHandler;
@@ -37,6 +38,7 @@ import com.vaadin.ui.CssLayout;
 import com.vaadin.ui.CustomField;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Layout;
+import com.vaadin.ui.UI;
 import com.vaadin.ui.themes.Reindeer;
 
 /**
@@ -150,6 +152,20 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
                 cb.focus();
             }
         }
+
+        /*
+         * The field itself is often not dirty in the case that defers a layout
+         * edit - a container listener firing mid-paint - so nothing would call
+         * beforeClientResponse on it. The input always is dirty then: it is
+         * what was painting. Flushing from here too is what gets a deferred
+         * token onto the screen on the next response rather than whenever the
+         * field next happens to be repainted.
+         */
+        @Override
+        public void beforeClientResponse(boolean initial) {
+            flushDeferredChanges();
+            super.beforeClientResponse(initial);
+        }
     };
 
     /**
@@ -158,6 +174,12 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     protected LinkedHashMap<Object, Button> buttons = new LinkedHashMap<>();
 
     protected boolean rememberNewTokens = true;
+
+    /** Set when a token change had to skip the layout; see {@link #rebuild()}. */
+    private boolean layoutSyncPending;
+
+    /** Token set held back until the response has been written, or null. */
+    private Set<?> pendingTokens;
 
     /**
      * Create a new TokenField with a caption and a {@link InsertPosition}.
@@ -298,10 +320,112 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
     }
 
+    /**
+     * True while Vaadin is serialising the response to the client.
+     * <p>
+     * Editing the component tree in that window throws
+     * {@code IllegalStateException: A connector should not be marked as dirty
+     * while a response is being written} — every layout edit marks the layout
+     * dirty ({@code AbstractComponentContainer.addComponent}/
+     * {@code removeComponent}), and {@code ConnectorTracker.markDirty} rejects
+     * that outright once {@code UidlWriter} has started.
+     * </p>
+     * <p>
+     * A field is easy to reach at that moment without meaning to. A ComboBox
+     * with a token caption property id filters through its container from
+     * inside its own paint ({@code ComboBox.getOptionsWithFilter} →
+     * {@code addContainerFilter}), a container reports a filter change as an
+     * item set change, and so any application listener on that container runs
+     * mid-paint — where touching the field would kill the request.
+     * </p>
+     */
+    private boolean isWritingResponse() {
+        UI ui = getUI();
+        return ui != null && ui.getConnectorTracker().isWritingResponse();
+    }
+
+    /**
+     * Records that the layout no longer matches {@link #buttons} and must be
+     * rebuilt once it is safe to do so.
+     *
+     * @return true if the caller should skip its layout edit
+     */
+    private boolean deferLayoutIfWritingResponse() {
+        if (isWritingResponse()) {
+            layoutSyncPending = true;
+            return true;
+        }
+        return false;
+    }
+
+    /** The tokens as they will be once anything deferred has been applied. */
+    private Set<?> currentTokens() {
+        if (pendingTokens != null) {
+            return pendingTokens;
+        }
+        Set<?> value = getValue();
+        return value == null ? new LinkedHashSet<>() : value;
+    }
+
+    /**
+     * Sets the token set, or holds it back until the response has been written.
+     * <p>
+     * {@code setValue} is not survivable mid-response: {@code AbstractField}
+     * ends every value change with an unconditional {@code markAsDirty()}
+     * ({@code AbstractField.fireValueChange}), which is exactly what
+     * {@code ConnectorTracker} rejects then. Deferring keeps
+     * {@link #addToken(Object)} and {@link #removeToken(Object)} safe to call
+     * from a listener that runs while the response is being written; the change
+     * lands on the next one instead of killing the request.
+     * </p>
+     * <p>
+     * Successive changes coalesce, so a listener firing on every keystroke
+     * queues one value, not a backlog.
+     * </p>
+     */
+    private void applyTokens(Set<?> newTokens) {
+        if (isWritingResponse()) {
+            pendingTokens = newTokens;
+            return;
+        }
+        setValue(newTokens);
+    }
+
+    /**
+     * Applies whatever a response-in-progress forced this field to postpone.
+     * Called from {@link #beforeClientResponse(boolean)} on this field and on
+     * its input, both of which run before the response is written.
+     * <p>
+     * Vaadin re-collects dirty connectors until none are left unprocessed
+     * ({@code UidlWriter}'s {@code while (true)} loop), so marking this field
+     * dirty from here still reaches the client in the same response.
+     * </p>
+     */
+    void flushDeferredChanges() {
+        if (pendingTokens != null) {
+            Set<?> tokens = pendingTokens;
+            pendingTokens = null;
+            setValue(tokens);
+        }
+        if (layoutSyncPending) {
+            layoutSyncPending = false;
+            rebuild();
+        }
+    }
+
+    @Override
+    public void beforeClientResponse(boolean initial) {
+        flushDeferredChanges();
+        super.beforeClientResponse(initial);
+    }
+
     /*
      * Rebuilds from scratch
      */
     private void rebuild() {
+        if (deferLayoutIfWritingResponse()) {
+            return;
+        }
         layout.removeAllComponents();
         if (!isReadOnly() && insertPosition == InsertPosition.AFTER) {
             layout.addComponent(cb);
@@ -403,9 +527,14 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         });
         buttons.put(val, b);
 
+        // The button is in `buttons` either way, so a deferred rebuild picks it
+        // up; only the layout edit has to wait.
+        if (deferLayoutIfWritingResponse()) {
+            return;
+        }
+
         if (insertPosition == InsertPosition.BEFORE) {
-            layout.replaceComponent(cb, b);
-            layout.addComponent(cb);
+            insertBeforeInput(b);
         } else {
             layout.addComponent(b);
         }
@@ -413,6 +542,52 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             ((HorizontalLayout) layout).setExpandRatio(cb, 1.0f);
         }
 
+    }
+
+    /**
+     * Puts a freshly created token button immediately before the input.
+     * <p>
+     * Adding the button at the input's index leaves the input where it is.
+     * Swapping the two and re-appending the input would reach the same
+     * arrangement, but it detaches the input first, and detaching a component
+     * marks its parent dirty through {@code AbstractComponent.setParent} —
+     * which Vaadin forbids outright while a response is being written, and
+     * which costs a full repaint of the input the rest of the time. Both are
+     * avoidable: nothing here needs the input to move.
+     * </p>
+     * <p>
+     * Index-based insertion is not on {@code ComponentContainer}, so layouts
+     * that do not offer it fall back to the swap. Both layouts this component
+     * creates for itself ({@link CssLayout}, {@link HorizontalLayout}) offer
+     * it, as does every {@code AbstractOrderedLayout}.
+     * </p>
+     */
+    private void insertBeforeInput(Button b) {
+        int inputIndex = indexOfInput();
+        if (inputIndex >= 0) {
+            if (layout instanceof CssLayout) {
+                ((CssLayout) layout).addComponent(b, inputIndex);
+                return;
+            }
+            if (layout instanceof AbstractOrderedLayout) {
+                ((AbstractOrderedLayout) layout).addComponent(b, inputIndex);
+                return;
+            }
+        }
+        layout.replaceComponent(cb, b);
+        layout.addComponent(cb);
+    }
+
+    /** @return the input's position in the layout, or -1 if it is not there */
+    private int indexOfInput() {
+        int index = 0;
+        for (Component child : layout) {
+            if (child == cb) {
+                return index;
+            }
+            index++;
+        }
+        return -1;
     }
 
     /**
@@ -435,16 +610,13 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the token to add
      */
     public void addToken(Object tokenId) {
-        Set<?> set = getValue();
-        if (set == null) {
-            set = new LinkedHashSet<>();
-        }
+        Set<?> set = currentTokens();
         if (set.contains(tokenId)) {
             return;
         }
-        HashSet<Object> newSet = new LinkedHashSet<>(set);
+        LinkedHashSet<Object> newSet = new LinkedHashSet<>(set);
         newSet.add(tokenId);
-        setValue(newSet);
+        applyTokens(newSet);
     }
 
     /**
@@ -458,17 +630,19 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the token to remove
      */
     public void removeToken(Object tokenId) {
-        Set<?> set = getValue();
+        Set<?> set = currentTokens();
         LinkedHashSet<Object> newSet = new LinkedHashSet<>(set);
         newSet.remove(tokenId);
 
-        setValue(newSet);
+        applyTokens(newSet);
     }
 
     private void removeTokenButton(Object tokenId) {
-        Button button = buttons.get(tokenId);
+        Button button = buttons.remove(tokenId);
+        if (deferLayoutIfWritingResponse()) {
+            return;
+        }
         layout.removeComponent(button);
-        buttons.remove(tokenId);
     }
 
     /**
@@ -558,7 +732,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
         super.setReadOnly(readOnly);
         if (readOnly) {
-            layout.removeComponent(cb);
+            if (!deferLayoutIfWritingResponse()) {
+                layout.removeComponent(cb);
+            }
         } else {
             rebuild();
         }

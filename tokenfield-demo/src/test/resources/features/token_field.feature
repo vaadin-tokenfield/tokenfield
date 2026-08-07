@@ -276,20 +276,18 @@ Feature: TokenField everyday usage
   # gave the TokenField, so that a change to the contact list can update
   # the field. Here it keeps Linus Torvalds among the recipients.
   #
-  # That ordinary-looking arrangement is what issue #15 reports as
+  # That ordinary-looking arrangement is what issue #15 reported as
   # "IllegalStateException: A connector should not be marked as dirty
   # while a response is being written". A ComboBox with a caption property
   # id filters through its container from inside its own paint, and a
   # container reports a filter change as an item set change — so this
-  # listener runs while Vaadin is writing the response, and editing the
-  # field from there marks a connector dirty at the one moment that is
-  # forbidden. The user sees the request fail as soon as they type.
+  # listener runs while Vaadin is writing the response, where editing the
+  # field used to kill the request.
   #
-  # Tagged @issue-15 and so excluded from the default run; see the
-  # it.cucumber.tags property in tokenfield-demo/pom.xml.
+  # TokenField now holds such a change back and applies it on the next
+  # response, so the token appears as the user keeps typing.
   # TokenFieldMarkAsDirtyWhileWritingResponseTest in the add-on module
-  # pins the same thing without a browser.
-  @issue-15
+  # pins the same behaviour without a browser.
   Scenario: A container listener can add a token while the user is typing
     Given the "Container listener" example
     When I start typing "Ein"

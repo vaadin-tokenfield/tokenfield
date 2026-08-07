@@ -14,36 +14,37 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
- * Reproduces {@code IllegalStateException: A connector should not be marked as
- * dirty while a response is being written} from TokenField.
+ * Covers {@code IllegalStateException: A connector should not be marked as
+ * dirty while a response is being written} — issue #15 — and the deferral that
+ * now keeps TokenField out of it.
  *
- * <p>Vaadin throws it from {@code ConnectorTracker.markDirty}, which refuses to
- * accept a newly dirtied connector once {@code UidlWriter} has started writing
- * the response ({@code ConnectorTracker.java:503-506}). Everything a component
- * paints happens inside that window, so anything that dirties a connector while
- * painting hits it.</p>
+ * <p>Vaadin throws from {@code ConnectorTracker.markDirty}, which refuses a
+ * newly dirtied connector once {@code UidlWriter} has started writing the
+ * response ({@code ConnectorTracker.java:503-506}). Everything a component
+ * paints happens inside that window.</p>
  *
- * <p>TokenField reaches it because every token it adds or removes edits its own
- * layout, and detaching a component calls {@code markAsDirty()} directly rather
- * than through the {@code getState()} accessor Vaadin guards with
- * {@code isWritingResponse()} ({@code AbstractComponent.setParent} →
- * {@code AbstractClientConnector.markAsDirty}, versus the
- * {@code !isWritingResponse()} check in
- * {@code AbstractClientConnector.getState(boolean)}). So a token change is
- * fatal during a paint, while a caption or a prompt change is silently
- * dropped.</p>
+ * <p>The route in is {@link ComboBox#paintContent}: in
+ * {@code ITEM_CAPTION_MODE_PROPERTY}, with something typed, it filters through
+ * the container rather than in memory and applies that filter from inside the
+ * paint ({@code ComboBox.getOptionsWithFilter} → {@code addContainerFilter}).
+ * A container reports a filter change as an item set change, so every
+ * application listener on that container runs mid-paint — and a listener that
+ * edits the field used to kill the request. None of this is specific to a
+ * container implementation: {@link IndexedContainer} is used here because it
+ * ships with {@code vaadin-server}, but a {@code JPAContainer} behaved
+ * identically.</p>
  *
- * <p>The route in is {@link ComboBox#paintContent}: when the ComboBox is in
- * {@code ITEM_CAPTION_MODE_PROPERTY} and the user has typed something, it
- * filters through the container rather than in memory, and applies that filter
- * from inside the paint ({@code ComboBox.getOptionsWithFilter} →
- * {@code addContainerFilter}). Containers announce a filter change as an item
- * set change, so every application listener on that container runs mid-paint —
- * and if one of them touches the TokenField, the request dies.</p>
+ * <p>TokenField now holds such a change back and applies it from
+ * {@code beforeClientResponse}, which runs before the next response is
+ * written. That is the only option available to it: both halves of a token
+ * change mark a connector dirty unconditionally — {@code AbstractField}
+ * ends every value change with {@code markAsDirty()}
+ * ({@code AbstractField.fireValueChange}), and every layout edit marks the
+ * layout dirty ({@code AbstractComponentContainer.addComponent}/
+ * {@code removeComponent}) — so neither can simply be made safe in place.</p>
  *
- * <p>None of this is specific to a container implementation:
- * {@link IndexedContainer} is used here because it is in {@code vaadin-server},
- * but a {@code JPAContainer} fails identically.</p>
+ * <p>The cost is that the change lands one response later, and the tests below
+ * pin that as the contract rather than hiding it.</p>
  */
 class TokenFieldMarkAsDirtyWhileWritingResponseTest {
 
@@ -86,22 +87,30 @@ class TokenFieldMarkAsDirtyWhileWritingResponseTest {
     // ------------------------------------------------------------------
 
     /**
-     * The user types, and the request fails server side.
+     * The user types, and the request survives.
      *
      * <p>The application here keeps itself in sync with the container it handed
      * to the TokenField, which is ordinary enough. The filter the ComboBox
-     * applies while painting reaches that listener as an item set change, the
-     * listener adds a token, and adding a token edits a layout that Vaadin is
-     * in the middle of serialising.</p>
+     * applies while painting reaches that listener as an item set change, and
+     * the listener adds a token — from inside the response. TokenField holds
+     * that change back rather than dying on it, and applies it at the start of
+     * the next response.</p>
      */
     @Test
-    void typingThrowsWhenAContainerListenerAddsAToken() {
+    void typingWithAContainerListenerAddsTheTokenOnTheNextResponse() throws PaintException {
         contacts.addItemSetChangeListener(event -> field.addToken(firstContact));
 
         typeIntoSuggestionBox("Ein");
+        paintAsUidlWriterWould();
 
-        IllegalStateException thrown = assertThrows(IllegalStateException.class, this::paintAsUidlWriterWould);
-        assertThat(thrown).hasMessageThat().isEqualTo(EXPECTED_MESSAGE);
+        // Held back: the value cannot change while the response is written.
+        assertThat(field.getTokenButtons()).isEmpty();
+
+        field.beforeClientResponse(false);
+
+        assertThat(field.getTokenButtons()).containsKey(firstContact);
+        assertThat(field.getValue()).contains(firstContact);
+        assertThat(field.getLayoutComponents()).hasSize(2);
     }
 
     /** The same listener is harmless when nothing is being written. */
@@ -136,25 +145,77 @@ class TokenFieldMarkAsDirtyWhileWritingResponseTest {
      */
 
     @Test
-    void addTokenThrowsWhileTheResponseIsWritten() {
-        assertThrowsWhileWritingResponse(() -> field.addToken(firstContact));
+    void addTokenIsDeferredWhileTheResponseIsWritten() {
+        whileWritingResponse(() -> field.addToken(firstContact));
+        assertThat(field.getTokenButtons()).isEmpty();
+
+        field.beforeClientResponse(false);
+
+        assertThat(field.getTokenButtons()).containsKey(firstContact);
     }
 
     @Test
-    void removeTokenThrowsWhileTheResponseIsWritten() {
+    void removeTokenIsDeferredWhileTheResponseIsWritten() {
         field.addToken(firstContact);
-        assertThrowsWhileWritingResponse(() -> field.removeToken(firstContact));
+
+        whileWritingResponse(() -> field.removeToken(firstContact));
+        assertThat(field.getTokenButtons()).containsKey(firstContact);
+
+        field.beforeClientResponse(false);
+
+        assertThat(field.getTokenButtons()).isEmpty();
+    }
+
+    /** Successive changes coalesce into the last one, not a backlog. */
+    @Test
+    void repeatedTokenChangesWhileWritingCoalesce() {
+        whileWritingResponse(() -> {
+            field.addToken(firstContact);
+            field.addToken(contacts.getIdByIndex(1));
+            field.removeToken(firstContact);
+        });
+
+        field.beforeClientResponse(false);
+
+        assertThat(field.getTokenButtons().keySet())
+                .containsExactly(contacts.getIdByIndex(1));
     }
 
     @Test
-    void setReadOnlyThrowsWhileTheResponseIsWritten() {
-        assertThrowsWhileWritingResponse(() -> field.setReadOnly(true));
+    void setReadOnlyIsDeferredWhileTheResponseIsWritten() {
+        whileWritingResponse(() -> field.setReadOnly(true));
+
+        field.beforeClientResponse(false);
+
+        // Read-only hides the input, leaving the (empty) token list behind.
+        assertThat(field.getLayoutComponents()).isEmpty();
     }
 
     @Test
-    void setTokenInsertPositionThrowsWhileTheResponseIsWritten() {
-        assertThrowsWhileWritingResponse(
+    void setTokenInsertPositionIsDeferredWhileTheResponseIsWritten() {
+        field.addToken(firstContact);
+
+        whileWritingResponse(
                 () -> field.setTokenInsertPosition(TokenField.InsertPosition.AFTER));
+
+        field.beforeClientResponse(false);
+
+        assertThat(field.getTokenInsertPosition())
+                .isEqualTo(TokenField.InsertPosition.AFTER);
+        assertThat(field.getLayoutComponents().get(0))
+                .isEqualTo(field.getComboBox());
+    }
+
+    /**
+     * Not everything can be rescued. {@code setInputPrompt} is ComboBox's own
+     * setter, and it marks dirty by hand ({@code ComboBox.java:180-181})
+     * instead of writing through {@code getState()} — there is no seam for this
+     * component to defer it. Pinned so the remaining gap is explicit rather
+     * than discovered.
+     */
+    @Test
+    void setInputPromptStillThrowsWhileTheResponseIsWritten() {
+        assertThrowsWhileWritingResponse(() -> field.setInputPrompt("Start typing"));
     }
 
     /**
@@ -163,11 +224,6 @@ class TokenFieldMarkAsDirtyWhileWritingResponseTest {
      * instead of writing through {@code getState()}. Pinned because it shows the
      * hazard is the unguarded call, not the layout rebuild.
      */
-    @Test
-    void setInputPromptThrowsWhileTheResponseIsWritten() {
-        assertThrowsWhileWritingResponse(() -> field.setInputPrompt("Start typing"));
-    }
-
     /**
      * By contrast, a setter that only writes shared state is safe: Vaadin
      * guards that path itself, dropping the dirty mark instead of throwing
@@ -209,6 +265,15 @@ class TokenFieldMarkAsDirtyWhileWritingResponseTest {
         ui.startWritingResponse();
         try {
             field.getComboBox().paintContent(new NoopPaintTarget());
+        } finally {
+            ui.finishWritingResponse();
+        }
+    }
+
+    private void whileWritingResponse(Runnable operation) {
+        ui.startWritingResponse();
+        try {
+            operation.run();
         } finally {
             ui.finishWritingResponse();
         }

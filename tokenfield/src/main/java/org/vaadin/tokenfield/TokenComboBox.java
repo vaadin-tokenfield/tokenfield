@@ -20,12 +20,16 @@ import org.vaadin.tokenfield.client.ui.TokenFieldServerRpc;
 import com.vaadin.server.PaintException;
 import com.vaadin.server.PaintTarget;
 import com.vaadin.ui.ComboBox;
+import com.vaadin.ui.UI;
 
 public abstract class TokenComboBox extends ComboBox {
 
     private static final long serialVersionUID = 8382983756053298383L;
 
     protected TokenField.InsertPosition insertPosition;
+
+    /** Set when a dirty mark had to wait for the response to finish. */
+    private boolean dirtyMarkPending;
 
     protected TokenComboBox(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
@@ -44,7 +48,38 @@ public abstract class TokenComboBox extends ComboBox {
 
     public void setTokenInsertPosition(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
+        markAsDirtyWhenPossible();
+    }
+
+    /**
+     * Marks this connector dirty, or arranges for it as soon as that is legal
+     * again.
+     * <p>
+     * {@code ConnectorTracker.markDirty} throws outright once the response has
+     * started being written, and this component is painted from application
+     * code that can reach it at exactly that moment — see
+     * {@code TokenFieldMarkAsDirtyWhileWritingResponseTest}. Holding the mark
+     * back to {@link #beforeClientResponse(boolean)} keeps the change instead
+     * of losing it, which is what Vaadin's own guarded state writes do
+     * ({@code AbstractClientConnector.getState(boolean)}).
+     * </p>
+     */
+    private void markAsDirtyWhenPossible() {
+        UI ui = getUI();
+        if (ui != null && ui.getConnectorTracker().isWritingResponse()) {
+            dirtyMarkPending = true;
+            return;
+        }
         markAsDirty();
+    }
+
+    @Override
+    public void beforeClientResponse(boolean initial) {
+        if (dirtyMarkPending) {
+            dirtyMarkPending = false;
+            markAsDirty();
+        }
+        super.beforeClientResponse(initial);
     }
 
     protected abstract void onDelete();
