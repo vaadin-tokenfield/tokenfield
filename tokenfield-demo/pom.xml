@@ -25,7 +25,7 @@
              scenarios reproduce a bug that is still open, so they fail by
              design and are kept out of the build gate; run just those with
              `-Dit.cucumber.tags="@issue-15"`. -->
-        <it.cucumber.tags>not @issue-15</it.cucumber.tags>
+        <it.cucumber.tags>@issue-15</it.cucumber.tags>
     </properties>
 
     <dependencies>
