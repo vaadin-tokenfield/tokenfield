@@ -371,22 +371,26 @@ public class DemoRoot extends UI {
 
             {
                 /*
-                 * Reproduction for issue #15: "JPAContainer crash".
+                 * Built as the reproduction for issue #15, "JPAContainer
+                 * crash":
                  *
                  * https://github.com/vaadin-tokenfield/tokenfield/issues/15
                  *
-                 * Same three steps as the report - a JPAContainer as the data
-                 * source, a token caption property id, then start typing - over
-                 * an H2 in-memory database so it runs with the rest of the
-                 * demo. Everything else is left at its defaults, so that
-                 * whatever this panel does differently from the "Full featured
-                 * example" above (which drives the identical code paths off a
-                 * BeanItemContainer without crashing) is the container alone.
+                 * The report's three steps are a JPAContainer as the data
+                 * source, a token caption property id, then start typing, after
+                 * which it expects "IllegalStateException: A connector should
+                 * not be marked as dirty while a response is being written".
+                 * That is exactly what this panel does, over an H2 in-memory
+                 * database so it runs with the rest of the demo; everything
+                 * else is left at its defaults, so the only thing separating it
+                 * from the "Full featured example" above - which drives the
+                 * same code paths off a BeanItemContainer - is the container.
                  *
-                 * Typing here is expected to raise, server side:
-                 *
-                 *   java.lang.IllegalStateException: A connector should not be
-                 *   marked as dirty while a response is being written.
+                 * It does not crash: on JPAContainer 3.2.0 and Vaadin 7.7.17
+                 * typing filters and suggests normally, as the browser suite
+                 * asserts. The panel stays as the regression test pinning that,
+                 * and as the starting point for narrowing the report down; see
+                 * the README's "Bug reproductions" section.
                  */
 
                 Panel p = new Panel("JPAContainer (issue #15)");

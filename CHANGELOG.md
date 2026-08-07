@@ -43,14 +43,15 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   (releases), and the build job is capped at 30 minutes so a hung browser or server fails the run
   instead of occupying a runner. Test reports, the Cucumber HTML report and the Playwright traces of
   failed scenarios are uploaded as an artifact when a build fails.
-- A sixth demo panel, "JPAContainer (issue #15)", reproducing
-  [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15): a `TokenField` bound to a
-  `JPAContainer` over an H2 in-memory database (EclipseLink; see `org.vaadin.tokenfield.jpa` and
+- A sixth demo panel, "JPAContainer (issue #15)": a `TokenField` bound to a `JPAContainer` over an
+  H2 in-memory database (EclipseLink; see `org.vaadin.tokenfield.jpa` and
   `tokenfield-demo/src/main/resources/META-INF/persistence.xml`) with a token caption property id
-  set, which is all the report's three steps need. The matching scenario is tagged `@issue-15` and
-  excluded from the default run via the new `it.cucumber.tags` property, since it describes the
-  behaviour the bug breaks and so fails until the bug is fixed; run it with
-  `./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"`.
+  set — the three steps [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15) reports as
+  crashing. They do not crash here: typing filters and suggests normally on JPAContainer 3.2.0 and
+  Vaadin 7.7.17, so the matching browser scenario runs in the default suite as a regression test
+  pinning that behaviour, and the issue stays open pending the narrower cases listed under "Bug
+  reproductions" in the README. The new `it.cucumber.tags` property is the mechanism for keeping a
+  genuinely known-failing reproduction out of the build gate when there is one.
 - Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
   (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
   locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert

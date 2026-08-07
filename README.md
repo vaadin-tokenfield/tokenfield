@@ -106,21 +106,41 @@ is written to `tokenfield-demo/target/cucumber/report.html`.
 
 ### Bug reproductions
 
-The demo doubles as the reproduction harness for open bugs: a panel per bug, and a scenario tagged with
-the issue number. Those scenarios describe what *should* happen, so they fail until the bug is fixed and
-are excluded from the default run — the build gate stays meaningful. Run one on demand with:
+The demo doubles as the reproduction harness for open bugs: a panel per bug, plus a scenario. When a
+scenario reproduces a bug it describes what *should* happen, so it fails until the bug is fixed; tag it
+`@issue-<n>` to keep it out of the build gate (the `it.cucumber.tags` property in
+`tokenfield-demo/pom.xml` defaults to `not @issue-15`), and run it on demand with:
 
 ```shell
 ./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"
 ```
 
-Currently reproduced this way:
+#### [#15 JPAContainer crash](https://github.com/vaadin-tokenfield/tokenfield/issues/15) — not reproduced
 
-- **[#15 JPAContainer crash](https://github.com/vaadin-tokenfield/tokenfield/issues/15)** — the
-  "JPAContainer (issue #15)" panel binds a `TokenField` to a `JPAContainer` over an H2 in-memory
-  database (`org.vaadin.tokenfield.jpa`, `tokenfield-demo/src/main/resources/META-INF/persistence.xml`)
-  and sets a token caption property id. Typing into it is meant to suggest matching contacts. The
-  browser-side symptom is in the scenario; the server-side one is in the Jetty log.
+The "JPAContainer (issue #15)" panel binds a `TokenField` to a `JPAContainer` over an H2 in-memory
+database (`org.vaadin.tokenfield.jpa`, `tokenfield-demo/src/main/resources/META-INF/persistence.xml`)
+and sets a token caption property id — the report's three steps exactly. **Typing into it works**:
+suggestions filter normally, and no `IllegalStateException` reaches the server log. Its scenario
+therefore runs in the default suite as a regression test rather than as a tagged known-failure.
+
+The report is against TokenField 7.0.1; this fork runs Vaadin 7.7.17 and JPAContainer 3.2.0. The
+framework guard that would suppress the reported symptom on this path — `ComboBox`'s `isPainting`
+check in `containerItemSetChange`, which swallows the item-set-change events `addContainerFilter`/
+`removeContainerFilter` provoke while the response is being written — is present in Vaadin 7.0.1 too,
+so a framework upgrade does not explain the difference.
+
+What the panel does *not* yet cover, in rough order of promise:
+
+- **Committing a token, not just typing.** `TokenField.rememberToken` calls `cb.addItem(...)` and
+  `getTokenCaption` calls `cb.containsId(...)` with the typed `String`, while a `JPAContainer`'s item
+  ids are entity ids. Neither goes through `ComboBox`'s guard.
+- **`AbstractSelect`'s unguarded listeners.** `containerPropertySetChange` and the per-option
+  `CaptionChangeListener` both call `markAsDirty()` with no `isPainting` check, and the latter is
+  registered on live `JPAContainerItem` properties for every painted option.
+- **Other entity providers and buffering modes.** The panel uses the `JPAContainerFactory.make`
+  default (a `CachingMutableLocalEntityProvider`, write-through); caching and buffering change when
+  the container fires events.
+- **A data set larger than one suggestion page**, so paging and `size()` recounts come into play.
 
 ### Running the browser tests from an IDE
 

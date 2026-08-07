@@ -221,20 +221,20 @@ Feature: TokenField everyday usage
     Then the text input reappears
 
   # ---------------------------------------------------------------------
-  # JPAContainer — the reproduction for issue #15. Same TokenField feature
-  # as "A value typed once is offered again as a suggestion" above, only
-  # the data source is a JPAContainer over an H2 in-memory database
-  # instead of a BeanItemContainer.
+  # JPAContainer — same TokenField feature as "A value typed once is
+  # offered again as a suggestion" above, only the data source is a
+  # JPAContainer over an H2 in-memory database instead of a
+  # BeanItemContainer.
   #
-  # @issue-15 scenarios are excluded from the default run (see the
-  # it.cucumber.tags property in tokenfield-demo/pom.xml): they document a
-  # known-open bug, so they are expected to fail until it is fixed and are
-  # kept out of the build gate. Run them on demand with
-  #   ./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"
-  # and read the accompanying server-side stack trace in the Jetty log.
+  # This is the harness built for issue #15, which reports that exactly
+  # these steps throw "IllegalStateException: A connector should not be
+  # marked as dirty while a response is being written". It does NOT
+  # reproduce: the scenario passes against JPAContainer 3.2.0 on Vaadin
+  # 7.7.17. It is kept, and kept in the default run, as the regression
+  # test that pins the behaviour the report says is broken. See the
+  # README's "Bug reproductions" section for what is still unexplored.
   # ---------------------------------------------------------------------
 
-  @issue-15
   Scenario: Typing offers suggestions when the data source is a JPAContainer
     Given the "JPAContainer" example
     When I start typing "Ein"
