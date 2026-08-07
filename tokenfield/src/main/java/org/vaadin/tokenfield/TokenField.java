@@ -435,6 +435,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     private void addTokenButton(final Object val) {
         Button b = new Button();
         configureTokenButton(val, b);
+        applyReadOnlyState(b, isReadOnly());
         b.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = -1943432188848347317L;
 
@@ -528,6 +529,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void removeToken(Object tokenId) {
         Set<?> set = getValue();
+        if (set == null) {
+            return;
+        }
         LinkedHashSet<Object> newSet = new LinkedHashSet<>(set);
         newSet.remove(tokenId);
 
@@ -630,7 +634,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             return;
         }
         for (Button b : buttons.values()) {
-            b.setReadOnly(readOnly);
+            applyReadOnlyState(b, readOnly);
         }
         super.setReadOnly(readOnly);
         if (readOnly) {
@@ -638,6 +642,22 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         } else {
             rebuild();
         }
+    }
+
+    /*
+     * Puts a token button into the state matching the field's read-only flag.
+     *
+     * Disabling is the part that actually matters: marking a Button read-only
+     * does not stop the client from reaching its ClickListener, because Vaadin
+     * drops an incoming RPC call only for a connector that is not
+     * connector-enabled - and AbstractComponent#isConnectorEnabled() reads
+     * isVisible()/isEnabled(), not the read-only flag. Without setEnabled a
+     * click on a token button of a read-only field still runs onTokenClick ->
+     * removeToken -> setValue and fails with Property.ReadOnlyException.
+     */
+    private void applyReadOnlyState(Button b, boolean readOnly) {
+        b.setReadOnly(readOnly);
+        b.setEnabled(!readOnly);
     }
 
     /**
