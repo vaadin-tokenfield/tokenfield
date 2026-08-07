@@ -8,6 +8,7 @@ import com.vaadin.ui.Layout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Test subclass of {@link TokenField} that exposes protected fields and
@@ -106,6 +107,16 @@ public class TestTokenField extends TokenField {
     /** Returns the current layout for component-order assertions. */
     public Layout getInternalLayout() {
         return layout;
+    }
+
+    /**
+     * Directly calls the protected {@code setInternalValue}, bypassing the
+     * read-only guard in {@link com.vaadin.ui.AbstractField#setValue}. Used to
+     * inject a value while the field is already read-only, in order to
+     * exercise {@code addTokenButton} in that state.
+     */
+    public void exposeSetInternalValue(Set<?> value) {
+        setInternalValue(value);
     }
 
     /** Returns all layout components in their current order. */
