@@ -57,7 +57,7 @@
         -->
         <dependency>
             <groupId>com.vaadin.addon</groupId>
-            <artifactId>vaadin-jpacontainer</artifactId>
+            <artifactId>jpacontainer</artifactId>
         </dependency>
         <dependency>
             <groupId>org.eclipse.persistence</groupId>

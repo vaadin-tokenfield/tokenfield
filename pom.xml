@@ -39,9 +39,10 @@
         <vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
 
         <!--
-            Used only by the demo's issue #15 reproduction panel. JPAContainer 3.x
-            is the Vaadin 7 line of the add-on and is published to the Vaadin
-            Add-on Directory repository declared below, not to Maven Central.
+            Used only by the demo's issue #15 reproduction panel. JPAContainer
+            3.2.0 is the last release of the add-on built against Vaadin 7 (4.0.0
+            moved to Vaadin 8), and is published to the Vaadin Add-on Directory
+            repository declared below, not to Maven Central.
             EclipseLink 2.7.x is the last javax.persistence line, and H2 2.2.x the
             last that runs on Java 8 - both match what this project builds against.
         -->
@@ -188,9 +189,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!--
+                Note the artifactId: the jar file is named
+                vaadin-jpacontainer-3.2.0.jar (the add-on POM sets that as its
+                build finalName), but the artifact's coordinate is plain
+                "jpacontainer".
+            -->
             <dependency>
                 <groupId>com.vaadin.addon</groupId>
-                <artifactId>vaadin-jpacontainer</artifactId>
+                <artifactId>jpacontainer</artifactId>
                 <version>${jpacontainer.version}</version>
             </dependency>
             <dependency>
