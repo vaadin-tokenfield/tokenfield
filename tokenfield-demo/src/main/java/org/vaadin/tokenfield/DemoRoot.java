@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.vaadin.tokenfield.TokenField.InsertPosition;
+import org.vaadin.tokenfield.jpa.JpaContacts;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Property.ValueChangeEvent;
@@ -366,6 +367,44 @@ public class DemoRoot extends UI {
                 lo.addComponent(f);
                 lo.setExpandRatio(f, 1.0f);
 
+            }
+
+            {
+                /*
+                 * Reproduction for issue #15: "JPAContainer crash".
+                 *
+                 * https://github.com/vaadin-tokenfield/tokenfield/issues/15
+                 *
+                 * Same three steps as the report - a JPAContainer as the data
+                 * source, a token caption property id, then start typing - over
+                 * an H2 in-memory database so it runs with the rest of the
+                 * demo. Everything else is left at its defaults, so that
+                 * whatever this panel does differently from the "Full featured
+                 * example" above (which drives the identical code paths off a
+                 * BeanItemContainer without crashing) is the container alone.
+                 *
+                 * Typing here is expected to raise, server side:
+                 *
+                 *   java.lang.IllegalStateException: A connector should not be
+                 *   marked as dirty while a response is being written.
+                 */
+
+                Panel p = new Panel("JPAContainer (issue #15)");
+                VerticalLayout l = new VerticalLayout();
+                l.setMargin(true);
+                p.setContent(l);
+                addComponent(p);
+
+                TokenField f = new TokenField("Add contact");
+                f.setContainerDataSource(JpaContacts.container());
+                // Together these are steps 1 and 2 of the report. The caption
+                // property id also puts the ComboBox into
+                // ITEM_CAPTION_MODE_PROPERTY, which is what makes it filter via
+                // the container (JPA query) rather than in memory.
+                f.setTokenCaptionPropertyId("name");
+                f.setFilteringMode(FilteringMode.CONTAINS);
+                f.setInputPrompt("Start typing a contact name");
+                l.addComponent(f);
             }
         }
     }

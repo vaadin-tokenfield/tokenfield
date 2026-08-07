@@ -3,7 +3,7 @@ Feature: TokenField everyday usage
   I want to add, review and remove tokens with the keyboard or the mouse
   So that I can build up a list of values without leaving the field
 
-  # Each scenario below opens one of the demo's five example panels, chosen
+  # Each scenario below opens one of the demo's six example panels, chosen
   # by a business-language name rather than the demo's own on-screen Panel
   # caption (see DemoSteps#panelIndexFor):
   #   "Basic"                         -> "Basic"
@@ -11,9 +11,10 @@ Feature: TokenField everyday usage
   #   "Address book"                  -> "Full featured example"
   #   "Data binding and buffering"    -> "Data binding and buffering"
   #   "Layout and insert position"    -> "Layout and InsertPosition"
+  #   "JPAContainer"                  -> "JPAContainer (issue #15)"
 
-  Scenario: The demo shows all five examples with their inputs ready
-    Then the demo page shows all five example panels, each with its own input
+  Scenario: The demo shows all six examples with their inputs ready
+    Then the demo page shows all six example panels, each with its own input
 
   # ---------------------------------------------------------------------
   # Basic — plain TokenField, default settings.
@@ -218,3 +219,23 @@ Feature: TokenField everyday usage
     And a token chip labeled "kept" appears in the field
     When I mark the field as editable again
     Then the text input reappears
+
+  # ---------------------------------------------------------------------
+  # JPAContainer — the reproduction for issue #15. Same TokenField feature
+  # as "A value typed once is offered again as a suggestion" above, only
+  # the data source is a JPAContainer over an H2 in-memory database
+  # instead of a BeanItemContainer.
+  #
+  # @issue-15 scenarios are excluded from the default run (see the
+  # it.cucumber.tags property in tokenfield-demo/pom.xml): they document a
+  # known-open bug, so they are expected to fail until it is fixed and are
+  # kept out of the build gate. Run them on demand with
+  #   ./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"
+  # and read the accompanying server-side stack trace in the Jetty log.
+  # ---------------------------------------------------------------------
+
+  @issue-15
+  Scenario: Typing offers suggestions when the data source is a JPAContainer
+    Given the "JPAContainer" example
+    When I start typing "Ein"
+    Then "Nathan Einstein" appears in the suggestion list

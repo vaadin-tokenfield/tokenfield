@@ -104,6 +104,24 @@ living documentation of how a user works with `TokenField`), and `RunCucumberIT`
 and in CI alike (`-DskipITs=true` for a fast inner loop without them). A scenario-by-scenario HTML report
 is written to `tokenfield-demo/target/cucumber/report.html`.
 
+### Bug reproductions
+
+The demo doubles as the reproduction harness for open bugs: a panel per bug, and a scenario tagged with
+the issue number. Those scenarios describe what *should* happen, so they fail until the bug is fixed and
+are excluded from the default run — the build gate stays meaningful. Run one on demand with:
+
+```shell
+./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"
+```
+
+Currently reproduced this way:
+
+- **[#15 JPAContainer crash](https://github.com/vaadin-tokenfield/tokenfield/issues/15)** — the
+  "JPAContainer (issue #15)" panel binds a `TokenField` to a `JPAContainer` over an H2 in-memory
+  database (`org.vaadin.tokenfield.jpa`, `tokenfield-demo/src/main/resources/META-INF/persistence.xml`)
+  and sets a token caption property id. Typing into it is meant to suggest matching contacts. The
+  browser-side symptom is in the scenario; the server-side one is in the Jetty log.
+
 ### Running the browser tests from an IDE
 
 `RunCucumberIT` is a plain JUnit 5 (Platform Suite) test, so an IDE can run/debug it directly without going

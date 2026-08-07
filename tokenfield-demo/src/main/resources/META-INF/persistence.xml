@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="http://xmlns.jcp.org/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/persistence
+                                 http://xmlns.jcp.org/xml/ns/persistence/persistence_2_1.xsd"
+             version="2.1">
+
+    <!--
+        Persistence unit for the demo's "JPAContainer" panel, which reproduces
+        issue #15. Everything lives in an in-memory H2 database created on first
+        access and discarded with the JVM, so the demo stays a drop-in WAR with
+        no external database to install or clean up.
+    -->
+    <persistence-unit name="tokenfield-demo" transaction-type="RESOURCE_LOCAL">
+        <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+        <class>org.vaadin.tokenfield.jpa.ContactEntity</class>
+        <!-- No entity scanning: the one class above is listed explicitly. -->
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+
+        <properties>
+            <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>
+            <!--
+                DB_CLOSE_DELAY=-1 keeps the in-memory database alive between
+                EntityManager connections; without it H2 drops the schema as
+                soon as the last connection closes, and JPAContainer's next
+                query fails with "table not found".
+            -->
+            <property name="javax.persistence.jdbc.url"
+                      value="jdbc:h2:mem:tokenfield-demo;DB_CLOSE_DELAY=-1"/>
+            <property name="javax.persistence.jdbc.user" value="sa"/>
+            <property name="javax.persistence.jdbc.password" value=""/>
+
+            <property name="eclipselink.ddl-generation" value="create-tables"/>
+            <property name="eclipselink.ddl-generation.output-mode" value="database"/>
+            <!--
+                Static weaving is not run for this WAR and Jetty gives EclipseLink
+                no load-time weaver, so turn weaving off explicitly rather than
+                let the provider log a warning and fall back on its own.
+            -->
+            <property name="eclipselink.weaving" value="false"/>
+            <property name="eclipselink.logging.level" value="WARNING"/>
+        </properties>
+    </persistence-unit>
+</persistence>

@@ -7,7 +7,7 @@ import com.microsoft.playwright.options.SelectOption;
 import java.util.List;
 
 /**
- * Page object for the five-panel Vaadin 7 demo rendered by {@code DemoRoot}.
+ * Page object for the six-panel Vaadin 7 demo rendered by {@code DemoRoot}.
  * Replaces the deleted TypeScript {@code waitForVaadin}/{@code panelContent}
  * helpers: idle detection here polls {@code vaadin.clients[*].isActive()} —
  * the same contract Vaadin TestBench uses — instead of the {@code
@@ -22,6 +22,7 @@ final class DemoPage {
     static final int FULL = 2;
     static final int LAYOUT = 3;
     static final int BUFFERED = 4;
+    static final int JPA = 5;
 
     private static final String VAADIN_IDLE =
             "() => {"

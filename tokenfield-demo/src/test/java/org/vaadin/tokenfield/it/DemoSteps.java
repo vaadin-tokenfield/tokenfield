@@ -6,7 +6,7 @@ import io.cucumber.java.en.Then;
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 
 /**
- * Steps that pick which of the demo's five example panels a scenario works
+ * Steps that pick which of the demo's six example panels a scenario works
  * in, plus the one page-level check that isn't scoped to any single panel.
  */
 public class DemoSteps {
@@ -22,10 +22,10 @@ public class DemoSteps {
         world.usePanel(panelIndexFor(name));
     }
 
-    @Then("the demo page shows all five example panels, each with its own input")
-    public void demoShowsAllFivePanels() {
-        assertThat(world.demo().page().locator(".v-panel")).hasCount(5);
-        for (int i = 0; i <= DemoPage.LAYOUT; i++) {
+    @Then("the demo page shows all six example panels, each with its own input")
+    public void demoShowsAllSixPanels() {
+        assertThat(world.demo().page().locator(".v-panel")).hasCount(6);
+        for (int i = DemoPage.BASIC; i <= DemoPage.JPA; i++) {
             assertThat(world.demo().input(i)).isVisible();
         }
     }
@@ -49,6 +49,8 @@ public class DemoSteps {
                 return DemoPage.LAYOUT;
             case "Data binding and buffering":
                 return DemoPage.BUFFERED;
+            case "JPAContainer":
+                return DemoPage.JPA;
             default:
                 throw new IllegalArgumentException("Unknown demo example: \"" + name + "\"");
         }

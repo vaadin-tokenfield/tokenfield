@@ -43,6 +43,14 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   (releases), and the build job is capped at 30 minutes so a hung browser or server fails the run
   instead of occupying a runner. Test reports, the Cucumber HTML report and the Playwright traces of
   failed scenarios are uploaded as an artifact when a build fails.
+- A sixth demo panel, "JPAContainer (issue #15)", reproducing
+  [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15): a `TokenField` bound to a
+  `JPAContainer` over an H2 in-memory database (EclipseLink; see `org.vaadin.tokenfield.jpa` and
+  `tokenfield-demo/src/main/resources/META-INF/persistence.xml`) with a token caption property id
+  set, which is all the report's three steps need. The matching scenario is tagged `@issue-15` and
+  excluded from the default run via the new `it.cucumber.tags` property, since it describes the
+  behaviour the bug breaks and so fails until the bug is fixed; run it with
+  `./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"`.
 - Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
   (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
   locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert
