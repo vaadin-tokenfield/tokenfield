@@ -11,7 +11,7 @@ Feature: TokenField everyday usage
   #   "Address book"                  -> "Full featured example"
   #   "Data binding and buffering"    -> "Data binding and buffering"
   #   "Layout and insert position"    -> "Layout and InsertPosition"
-  #   "JPAContainer"                  -> "JPAContainer (issue #15)"
+  #   "JPAContainer"                  -> "JPAContainer"
 
   Scenario: The demo shows all six examples with their inputs ready
     Then the demo page shows all six example panels, each with its own input
@@ -226,11 +226,14 @@ Feature: TokenField everyday usage
   # JPAContainer over an H2 in-memory database instead of a
   # BeanItemContainer.
   #
-  # This is the harness built for issue #15, which reports that typing
-  # throws "IllegalStateException: A connector should not be marked as
-  # dirty while a response is being written". Typing alone does NOT
-  # reproduce that, so the first scenario runs in the default suite as the
-  # regression test pinning it.
+  # Issue #15 reports that typing throws "IllegalStateException: A
+  # connector should not be marked as dirty while a response is being
+  # written". Typing alone does NOT reproduce that — it also takes an
+  # application listener on the container that touches the TokenField, so
+  # the exception is pinned by TokenFieldMarkAsDirtyWhileWritingResponse-
+  # Test in the add-on module rather than from a browser. The first
+  # scenario below stays in the default suite as the regression test for
+  # plain typing.
   #
   # Committing a token does break, though — see the tagged scenario below
   # and the README's "Bug reproductions" section.

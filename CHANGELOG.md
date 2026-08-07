@@ -19,7 +19,7 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Add Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
-- JUnit 5 unit test suite (114 tests) covering container handling, buffering, read-only state,
+- JUnit 5 unit test suite (124 tests) covering container handling, buffering, read-only state,
   insert position, button configuration, delegation, sizing, captions/icons, layout swapping,
   the delete-key path, and UI input behavior.
 - JaCoCo coverage reporting and a build-failing line-coverage threshold (90%) on the add-on module.
@@ -43,21 +43,30 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   (releases), and the build job is capped at 30 minutes so a hung browser or server fails the run
   instead of occupying a runner. Test reports, the Cucumber HTML report and the Playwright traces of
   failed scenarios are uploaded as an artifact when a build fails.
-- A sixth demo panel, "JPAContainer (issue #15)": a `TokenField` bound to a `JPAContainer` over an
+- A sixth demo panel, "JPAContainer": a `TokenField` bound to a `JPAContainer` over an
   H2 in-memory database (EclipseLink; see `org.vaadin.tokenfield.jpa` and
   `tokenfield-demo/src/main/resources/META-INF/persistence.xml`) with a token caption property id
-  set — the three steps [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15) reports as
-  crashing. They do not crash here: typing filters and suggests normally on JPAContainer 3.2.0 and
-  Vaadin 7.7.17, nor on the versions current when the report was filed (JPAContainer 3.1.0 on Vaadin
-  7.1.15 and 7.2.0), so the matching browser scenario runs in the default suite as a
-  regression test pinning that behaviour. Committing a *typed* token against the same container does
-  fail, with a different exception — `TokenField.getTokenCaption` hands the raw `String` to
-  `containsId` and `rememberToken` hands it to `addItem`, but a `JPAContainer` is keyed by entity id
-  — so that case is a scenario tagged `@issue-15` and excluded from the build gate through the new
-  `it.cucumber.tags` property, and tracked as its own issue (#24). Picking an existing suggestion works and is pinned too. See "Bug
-  reproductions" in the README, including why the originally reported exception was most likely
-  JPAContainer's own `removeValueChangeListener` bug, fixed upstream after 3.1.0 and released in
-  3.2.0.
+  set, showing the component against a lazy, database-backed container. Committing a *typed* token
+  against it fails — `TokenField.getTokenCaption` hands the raw `String` to `containsId` and
+  `rememberToken` hands it to `addItem`, but a `JPAContainer` is keyed by entity id — so that case is
+  a browser scenario tagged `@issue-15`, excluded from the build gate through the new
+  `it.cucumber.tags` property and tracked as its own issue (#24). Picking an existing suggestion
+  works and is pinned too.
+- A reproduction for [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15),
+  `IllegalStateException: A connector should not be marked as dirty while a response is being
+  written`: `TokenFieldMarkAsDirtyWhileWritingResponseTest` (10 tests) in the add-on module. The
+  exception is reachable from `TokenField` on the report's own three steps, and is not specific to
+  `JPAContainer` — a plain `IndexedContainer` fails identically. With a token caption property id set
+  and a filter typed, `ComboBox.paintContent` applies that filter to the container *while Vaadin is
+  writing the response*, so every application listener on the container runs mid-paint; `ComboBox`
+  guards only its own handler, and a listener that touches the `TokenField` reaches an unguarded
+  `markAsDirty()`. Adding or removing a token edits the field's own layout, and detaching a component
+  marks dirty directly instead of through the `getState()` path Vaadin guards, so `addToken`,
+  `removeToken`, `setReadOnly`, `setTokenInsertPosition` and `setInputPrompt` are all fatal during a
+  paint while shared-state setters such as `setCaption` are merely dropped. Plain typing on its own
+  does not crash — on JPAContainer 3.2.0/Vaadin 7.7.17 or on the versions current when the report was
+  filed (JPAContainer 3.1.0 on Vaadin 7.1.15 and 7.2.0) — and stays pinned by a browser scenario in
+  the default suite. See "Bug reproductions" in the README.
 - Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
   (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
   locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert

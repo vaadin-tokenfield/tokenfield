@@ -6,10 +6,10 @@
              version="2.1">
 
     <!--
-        Persistence unit for the demo's "JPAContainer" panel, which reproduces
-        issue #15. Everything lives in an in-memory H2 database created on first
-        access and discarded with the JVM, so the demo stays a drop-in WAR with
-        no external database to install or clean up.
+        Persistence unit for the demo's "JPAContainer" panel. Everything lives
+        in an in-memory H2 database created on first access and discarded with
+        the JVM, so the demo stays a drop-in WAR with no external database to
+        install or clean up.
     -->
     <persistence-unit name="tokenfield-demo" transaction-type="RESOURCE_LOCAL">
         <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>

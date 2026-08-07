@@ -117,7 +117,7 @@ scenario reproduces a bug it describes what *should* happen, so it fails until t
 
 #### [#15 JPAContainer crash](https://github.com/vaadin-tokenfield/tokenfield/issues/15)
 
-The "JPAContainer (issue #15)" panel binds a `TokenField` to a `JPAContainer` over an H2 in-memory
+The "JPAContainer" panel binds a `TokenField` to a `JPAContainer` over an H2 in-memory
 database (`org.vaadin.tokenfield.jpa`, `tokenfield-demo/src/main/resources/META-INF/persistence.xml`)
 and sets a token caption property id — the report's three steps exactly.
 
@@ -157,7 +157,54 @@ id. It reproduces on every row of the table above, so it is not a regression. Pi
 suggestion instead of typing a whole value works, because then the ComboBox supplies a real entity
 id — the two scenarios beside the `@issue-15` one pin exactly that boundary.
 
-**Where the reported symptom probably came from.** JPAContainer had this, in `JPAContainerItem`:
+**What does produce the reported exception.** It is reachable from `TokenField`, on the report's own
+three steps, and it has nothing to do with JPAContainer — a plain `IndexedContainer` fails the same
+way. `TokenFieldMarkAsDirtyWhileWritingResponseTest` in the add-on module reproduces it
+deterministically, without a browser.
+
+Vaadin throws from `ConnectorTracker.markDirty`, which refuses a newly dirtied connector once
+`UidlWriter` has begun writing the response. Painting happens inside that window, and
+`ComboBox.paintContent` does more than serialise:
+
+```java
+// ComboBox.getOptionsWithFilter, called from paintContent
+if (filter != null) {
+    filterable.addContainerFilter(filter);   // mid-paint, mid-response
+}
+```
+
+It takes that branch precisely when a **token caption property id** is set (which selects
+`ITEM_CAPTION_MODE_PROPERTY`) and the user has **typed something** — steps 2 and 3 of the report.
+Containers announce a filter change as an item set change, so every application listener on the
+container runs mid-paint. `ComboBox` guards its own handler with `isPainting`, but nothing guards
+anyone else's, and if one of them touches the `TokenField` the request dies:
+
+```
+java.lang.IllegalStateException: A connector should not be marked as dirty while a response is being written.
+  at com.vaadin.ui.ConnectorTracker.markDirty(ConnectorTracker.java:504)
+  at com.vaadin.server.AbstractClientConnector.markAsDirty(AbstractClientConnector.java:143)
+  at com.vaadin.ui.AbstractComponent.setParent(AbstractComponent.java:591)
+  at com.vaadin.ui.AbstractComponentContainer.removeComponent(AbstractComponentContainer.java:229)
+  at com.vaadin.ui.CssLayout.replaceComponent(CssLayout.java:286)
+  at org.vaadin.tokenfield.TokenField.addTokenButton(TokenField.java:407)
+  at org.vaadin.tokenfield.TokenField.setInternalValue(TokenField.java:349)
+  at org.vaadin.tokenfield.TokenField.addToken(TokenField.java:447)
+  ...
+  at com.vaadin.ui.ComboBox.getOptionsWithFilter(ComboBox.java:441)
+  at com.vaadin.ui.ComboBox.paintContent(ComboBox.java:261)
+```
+
+The sink is that every token `TokenField` adds or removes edits its own layout, and detaching a
+component calls `markAsDirty()` directly instead of going through `getState()`, the accessor Vaadin
+does guard with `isWritingResponse()`. So `addToken`, `removeToken`, `setReadOnly`,
+`setTokenInsertPosition` and `setInputPrompt` are all fatal during a paint, while a shared-state
+setter such as `setCaption` is merely dropped.
+
+This also explains why the panel alone never reproduced it: the demo registers no container listener,
+and neither did any version combination in the table. The reporter's application must have had one —
+or anything else that reaches a `TokenField` mutator while the response is being written.
+
+**A related JPAContainer bug, ruled out.** JPAContainer once had this, in `JPAContainerItem`:
 
 ```java
 public void removeValueChangeListener(ValueChangeListener listener) {
@@ -167,19 +214,12 @@ public void removeValueChangeListener(ValueChangeListener listener) {
 
 `AbstractSelect.CaptionChangeListener.clear()` — which `ComboBox.paintContent` calls on every paint —
 removes its listeners through exactly that method, and `CaptionChangeListener.valueChange()` calls
-`markAsDirty()` with no `isPainting` guard (`ComboBox` guards only `containerItemSetChange`). Stale
-listeners accumulating on item properties therefore produce the reported exception. Upstream fixed it
-in [`cd0d3d0`](https://github.com/vaadin/jpacontainer/commit/cd0d3d0) (2013-10-29, Vaadin ticket
-#12155), but the previous release 3.1.0 was already out (2013-08) and the next, 3.2.0, only landed in
-2014-12 — so a report filed in 2014-05 lands squarely in the window where every released JPAContainer
-carried the bug. This project depends on 3.2.0, which has the fix.
-
-That remains a hypothesis: 3.1.0 on Vaadin 7.1.15 and on 7.2.0 did not trigger it here, so whatever
-else the reporter's application did to make those stale listeners fire mid-response is still
-unaccounted for. The panel is the place to try further ideas — an entity provider or buffering mode
-other than the `JPAContainerFactory.make` default (a `CachingMutableLocalEntityProvider`,
-write-through), or a data set larger than one suggestion page so paging and `size()` recounts come
-into play.
+`markAsDirty()` with no guard either, so stale listeners accumulating on item properties are a second
+route to the same exception. Upstream fixed it in
+[`cd0d3d0`](https://github.com/vaadin/jpacontainer/commit/cd0d3d0) (2013-10-29, Vaadin ticket #12155);
+3.1.0 was already out (2013-08) and 3.2.0 only landed in 2014-12, so a report filed in 2014-05 sits in
+the window where every released JPAContainer carried it. This project depends on 3.2.0, which has the
+fix — and the mechanism above needs neither the bug nor JPAContainer.
 
 ### Running the browser tests from an IDE
 

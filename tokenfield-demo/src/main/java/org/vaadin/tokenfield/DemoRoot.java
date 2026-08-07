@@ -371,30 +371,25 @@ public class DemoRoot extends UI {
 
             {
                 /*
-                 * Built as the reproduction for issue #15, "JPAContainer
-                 * crash":
+                 * TokenField over a JPA-backed data source, to show it works
+                 * against a lazy, database-backed container and not just the
+                 * in-memory ones above. The entities live in an H2 in-memory
+                 * database so the demo still deploys with nothing to install.
                  *
-                 * https://github.com/vaadin-tokenfield/tokenfield/issues/15
+                 * Everything else is left at its defaults, so the only thing
+                 * separating this from the "Full featured example" above -
+                 * which drives the same code paths off a BeanItemContainer -
+                 * is the container implementation.
                  *
-                 * The report's three steps are a JPAContainer as the data
-                 * source, a token caption property id, then start typing, after
-                 * which it expects "IllegalStateException: A connector should
-                 * not be marked as dirty while a response is being written".
-                 * That is exactly what this panel does, over an H2 in-memory
-                 * database so it runs with the rest of the demo; everything
-                 * else is left at its defaults, so the only thing separating it
-                 * from the "Full featured example" above - which drives the
-                 * same code paths off a BeanItemContainer - is the container.
-                 *
-                 * Typing does not crash: on JPAContainer 3.2.0 and Vaadin
-                 * 7.7.17 it filters and suggests normally, as the browser suite
-                 * asserts. Committing a typed token does, though, with a
-                 * different exception - TokenField hands the raw String to
-                 * containsId/addItem on a container keyed by entity id. See the
+                 * Note that a JPAContainer is keyed by entity id, so picking a
+                 * suggestion is the supported way to add a token here: that
+                 * hands TokenField a real id. Committing a value the user typed
+                 * would instead pass the raw String to containsId/addItem, and
+                 * the container cannot turn a caption into an id. See the
                  * README's "Bug reproductions" section.
                  */
 
-                Panel p = new Panel("JPAContainer (issue #15)");
+                Panel p = new Panel("JPAContainer");
                 VerticalLayout l = new VerticalLayout();
                 l.setMargin(true);
                 p.setContent(l);
@@ -402,10 +397,9 @@ public class DemoRoot extends UI {
 
                 TokenField f = new TokenField("Add contact");
                 f.setContainerDataSource(JpaContacts.container());
-                // Together these are steps 1 and 2 of the report. The caption
-                // property id also puts the ComboBox into
+                // The caption property id puts the ComboBox into
                 // ITEM_CAPTION_MODE_PROPERTY, which is what makes it filter via
-                // the container (JPA query) rather than in memory.
+                // the container (a JPA query) rather than in memory.
                 f.setTokenCaptionPropertyId("name");
                 f.setFilteringMode(FilteringMode.CONTAINS);
                 f.setInputPrompt("Start typing a contact name");
