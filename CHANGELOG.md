@@ -48,10 +48,15 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   `tokenfield-demo/src/main/resources/META-INF/persistence.xml`) with a token caption property id
   set — the three steps [#15](https://github.com/vaadin-tokenfield/tokenfield/issues/15) reports as
   crashing. They do not crash here: typing filters and suggests normally on JPAContainer 3.2.0 and
-  Vaadin 7.7.17, so the matching browser scenario runs in the default suite as a regression test
-  pinning that behaviour, and the issue stays open pending the narrower cases listed under "Bug
-  reproductions" in the README. The new `it.cucumber.tags` property is the mechanism for keeping a
-  genuinely known-failing reproduction out of the build gate when there is one.
+  Vaadin 7.7.17 (nor on 3.1.0), so the matching browser scenario runs in the default suite as a
+  regression test pinning that behaviour. Committing a *typed* token against the same container does
+  fail, with a different exception — `TokenField.getTokenCaption` hands the raw `String` to
+  `containsId` and `rememberToken` hands it to `addItem`, but a `JPAContainer` is keyed by entity id
+  — so that case is a scenario tagged `@issue-15` and excluded from the build gate through the new
+  `it.cucumber.tags` property. Picking an existing suggestion works and is pinned too. See "Bug
+  reproductions" in the README, including why the originally reported exception was most likely
+  JPAContainer's own `removeValueChangeListener` bug, fixed upstream after 3.1.0 and released in
+  3.2.0.
 - Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
   (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
   locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert

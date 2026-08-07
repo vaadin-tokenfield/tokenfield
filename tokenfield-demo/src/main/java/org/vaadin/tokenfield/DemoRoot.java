@@ -386,11 +386,12 @@ public class DemoRoot extends UI {
                  * from the "Full featured example" above - which drives the
                  * same code paths off a BeanItemContainer - is the container.
                  *
-                 * It does not crash: on JPAContainer 3.2.0 and Vaadin 7.7.17
-                 * typing filters and suggests normally, as the browser suite
-                 * asserts. The panel stays as the regression test pinning that,
-                 * and as the starting point for narrowing the report down; see
-                 * the README's "Bug reproductions" section.
+                 * Typing does not crash: on JPAContainer 3.2.0 and Vaadin
+                 * 7.7.17 it filters and suggests normally, as the browser suite
+                 * asserts. Committing a typed token does, though, with a
+                 * different exception - TokenField hands the raw String to
+                 * containsId/addItem on a container keyed by entity id. See the
+                 * README's "Bug reproductions" section.
                  */
 
                 Panel p = new Panel("JPAContainer (issue #15)");

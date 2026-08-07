@@ -115,32 +115,51 @@ scenario reproduces a bug it describes what *should* happen, so it fails until t
 ./mvnw -pl tokenfield-demo verify -Dit.cucumber.tags="@issue-15"
 ```
 
-#### [#15 JPAContainer crash](https://github.com/vaadin-tokenfield/tokenfield/issues/15) — not reproduced
+#### [#15 JPAContainer crash](https://github.com/vaadin-tokenfield/tokenfield/issues/15)
 
 The "JPAContainer (issue #15)" panel binds a `TokenField` to a `JPAContainer` over an H2 in-memory
 database (`org.vaadin.tokenfield.jpa`, `tokenfield-demo/src/main/resources/META-INF/persistence.xml`)
-and sets a token caption property id — the report's three steps exactly. **Typing into it works**:
-suggestions filter normally, and no `IllegalStateException` reaches the server log. Its scenario
-therefore runs in the default suite as a regression test rather than as a tagged known-failure.
+and sets a token caption property id — the report's three steps exactly.
 
-The report is against TokenField 7.0.1; this fork runs Vaadin 7.7.17 and JPAContainer 3.2.0. The
-framework guard that would suppress the reported symptom on this path — `ComboBox`'s `isPainting`
-check in `containerItemSetChange`, which swallows the item-set-change events `addContainerFilter`/
-`removeContainerFilter` provoke while the response is being written — is present in Vaadin 7.0.1 too,
-so a framework upgrade does not explain the difference.
+**The reported symptom does not reproduce.** Typing filters and suggests normally, and no
+`IllegalStateException: A connector should not be marked as dirty while a response is being written`
+reaches the server log. Nor does it on JPAContainer 3.1.0, the release a May-2014 reporter would have
+been on. That scenario runs in the default suite as the regression test pinning it.
 
-What the panel does *not* yet cover, in rough order of promise:
+**A different, real crash does.** Commit a typed token — type a value and press Enter — and the
+request dies server side:
 
-- **Committing a token, not just typing.** `TokenField.rememberToken` calls `cb.addItem(...)` and
-  `getTokenCaption` calls `cb.containsId(...)` with the typed `String`, while a `JPAContainer`'s item
-  ids are entity ids. Neither goes through `ComboBox`'s guard.
-- **`AbstractSelect`'s unguarded listeners.** `containerPropertySetChange` and the per-option
-  `CaptionChangeListener` both call `markAsDirty()` with no `isPainting` check, and the latter is
-  registered on live `JPAContainerItem` properties for every painted option.
-- **Other entity providers and buffering modes.** The panel uses the `JPAContainerFactory.make`
-  default (a `CachingMutableLocalEntityProvider`, write-through); caching and buffering change when
-  the container fires events.
-- **A data set larger than one suggestion page**, so paging and `size()` recounts come into play.
+```
+javax.persistence.PersistenceException: ... The object [Nathan Einstein], of class
+[class java.lang.String] ... could not be converted to [class java.lang.Long]
+  at com.vaadin.addon.jpacontainer.JPAContainer.containsId(JPAContainer.java:700)
+  at com.vaadin.ui.AbstractSelect.containsId(AbstractSelect.java:809)
+  at org.vaadin.tokenfield.TokenField.getTokenCaption(TokenField.java:688)
+  at org.vaadin.tokenfield.TokenField.configureTokenButton(TokenField.java:489)
+```
+
+That is a `TokenField` bug, not a JPAContainer one: `getTokenCaption` passes the raw typed `String`
+to `containsId`, and `rememberToken` passes it to `addItem`, but a `JPAContainer` is keyed by entity
+id. It reproduces on 3.1.0 and 3.2.0 alike. Picking an existing suggestion instead of typing a whole
+value works, because then the ComboBox supplies a real entity id — the two scenarios beside the
+`@issue-15` one pin exactly that boundary.
+
+**Where the reported symptom probably came from.** JPAContainer had this, in `JPAContainerItem`:
+
+```java
+public void removeValueChangeListener(ValueChangeListener listener) {
+    addListener(listener);   // adds instead of removes
+}
+```
+
+`AbstractSelect.CaptionChangeListener.clear()` — which `ComboBox.paintContent` calls on every paint —
+removes its listeners through exactly that method, and `CaptionChangeListener.valueChange()` calls
+`markAsDirty()` with no `isPainting` guard (`ComboBox` guards only `containerItemSetChange`). Stale
+listeners accumulating on item properties therefore produce the reported exception. Upstream fixed it
+in [`cd0d3d0`](https://github.com/vaadin/jpacontainer/commit/cd0d3d0) (2013-10-29, Vaadin ticket
+#12155), but the previous release 3.1.0 was already out (2013-08) and the next, 3.2.0, only landed in
+2014-12 — so a report filed in 2014-05 lands squarely in the window where every released JPAContainer
+carried the bug. This project depends on 3.2.0, which has the fix.
 
 ### Running the browser tests from an IDE
 

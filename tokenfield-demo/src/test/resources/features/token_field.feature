@@ -226,16 +226,43 @@ Feature: TokenField everyday usage
   # JPAContainer over an H2 in-memory database instead of a
   # BeanItemContainer.
   #
-  # This is the harness built for issue #15, which reports that exactly
-  # these steps throw "IllegalStateException: A connector should not be
-  # marked as dirty while a response is being written". It does NOT
-  # reproduce: the scenario passes against JPAContainer 3.2.0 on Vaadin
-  # 7.7.17. It is kept, and kept in the default run, as the regression
-  # test that pins the behaviour the report says is broken. See the
-  # README's "Bug reproductions" section for what is still unexplored.
+  # This is the harness built for issue #15, which reports that typing
+  # throws "IllegalStateException: A connector should not be marked as
+  # dirty while a response is being written". Typing alone does NOT
+  # reproduce that, so the first scenario runs in the default suite as the
+  # regression test pinning it.
+  #
+  # Committing a token does break, though — see the tagged scenario below
+  # and the README's "Bug reproductions" section.
   # ---------------------------------------------------------------------
 
   Scenario: Typing offers suggestions when the data source is a JPAContainer
     Given the "JPAContainer" example
     When I start typing "Ein"
     Then "Nathan Einstein" appears in the suggestion list
+
+  # Entering a token the user typed makes TokenField hand that raw String
+  # to the container: getTokenCaption calls containsId(tokenId), and
+  # rememberToken calls addItem(tokenId). A JPAContainer is keyed by entity
+  # id (here a Long), so it turns the caption into an id and queries with
+  # it, and the request dies server side with
+  #
+  #   javax.persistence.PersistenceException: ... The object [Nathan
+  #   Einstein], of class [class java.lang.String] ... could not be
+  #   converted to [class java.lang.Long]
+  #
+  # No token is added. Tagged @issue-15 and so excluded from the default
+  # run; see the it.cucumber.tags property in tokenfield-demo/pom.xml.
+  @issue-15
+  Scenario: Entering a typed token works when the data source is a JPAContainer
+    Given the "JPAContainer" example
+    When I type "Nathan Einstein" and press Enter
+    Then a token chip labeled "Nathan Einstein" appears in the field
+
+  # The same panel, reached by picking an existing suggestion instead of
+  # typing a whole value, passes: the ComboBox hands TokenField the real
+  # entity id, so nothing has to convert a caption into one.
+  Scenario: Picking a suggestion adds a token when the data source is a JPAContainer
+    Given the "JPAContainer" example
+    When I type "Einstein" and pick the matching suggestion
+    Then a token chip labeled "Nathan Einstein" appears in the field
