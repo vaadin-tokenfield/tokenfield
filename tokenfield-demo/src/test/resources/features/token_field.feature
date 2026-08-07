@@ -3,7 +3,7 @@ Feature: TokenField everyday usage
   I want to add, review and remove tokens with the keyboard or the mouse
   So that I can build up a list of values without leaving the field
 
-  # Each scenario below opens one of the demo's six example panels, chosen
+  # Each scenario below opens one of the demo's seven example panels, chosen
   # by a business-language name rather than the demo's own on-screen Panel
   # caption (see DemoSteps#panelIndexFor):
   #   "Basic"                         -> "Basic"
@@ -12,9 +12,10 @@ Feature: TokenField everyday usage
   #   "Data binding and buffering"    -> "Data binding and buffering"
   #   "Layout and insert position"    -> "Layout and InsertPosition"
   #   "JPAContainer"                  -> "JPAContainer"
+  #   "Container listener"            -> "Container listener"
 
-  Scenario: The demo shows all six examples with their inputs ready
-    Then the demo page shows all six example panels, each with its own input
+  Scenario: The demo shows all seven examples with their inputs ready
+    Then the demo page shows all seven example panels, each with its own input
 
   # ---------------------------------------------------------------------
   # Basic — plain TokenField, default settings.
@@ -269,3 +270,27 @@ Feature: TokenField everyday usage
     Given the "JPAContainer" example
     When I type "Einstein" and pick the matching suggestion
     Then a token chip labeled "Nathan Einstein" appears in the field
+
+  # ---------------------------------------------------------------------
+  # Container listener — the application listens to the same container it
+  # gave the TokenField, so that a change to the contact list can update
+  # the field. Here it keeps Linus Torvalds among the recipients.
+  #
+  # That ordinary-looking arrangement is what issue #15 reports as
+  # "IllegalStateException: A connector should not be marked as dirty
+  # while a response is being written". A ComboBox with a caption property
+  # id filters through its container from inside its own paint, and a
+  # container reports a filter change as an item set change — so this
+  # listener runs while Vaadin is writing the response, and editing the
+  # field from there marks a connector dirty at the one moment that is
+  # forbidden. The user sees the request fail as soon as they type.
+  #
+  # Tagged @issue-15 and so excluded from the default run; see the
+  # it.cucumber.tags property in tokenfield-demo/pom.xml.
+  # TokenFieldMarkAsDirtyWhileWritingResponseTest in the add-on module
+  # pins the same thing without a browser.
+  @issue-15
+  Scenario: A container listener can add a token while the user is typing
+    Given the "Container listener" example
+    When I start typing "Ein"
+    Then a token chip labeled "Linus Torvalds" appears in the field

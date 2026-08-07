@@ -40,6 +40,7 @@ import com.vaadin.ui.CssLayout;
 import com.vaadin.ui.Form;
 import com.vaadin.ui.GridLayout;
 import com.vaadin.ui.HorizontalLayout;
+import com.vaadin.ui.Label;
 import com.vaadin.ui.Layout;
 import com.vaadin.ui.ListSelect;
 import com.vaadin.ui.NativeSelect;
@@ -404,6 +405,65 @@ public class DemoRoot extends UI {
                 f.setFilteringMode(FilteringMode.CONTAINS);
                 f.setInputPrompt("Start typing a contact name");
                 l.addComponent(f);
+            }
+
+            {
+                /*
+                 * A TokenField whose container the application also listens to,
+                 * so that a change to the contact list can update the field.
+                 *
+                 * This looks unremarkable, and it is the arrangement that
+                 * reproduces "IllegalStateException: A connector should not be
+                 * marked as dirty while a response is being written". A
+                 * ComboBox with a caption property id filters through its
+                 * container from inside its own paint
+                 * (ComboBox.getOptionsWithFilter -> addContainerFilter), and a
+                 * container reports a filter change as an item set change - so
+                 * this listener runs while Vaadin is writing the response, and
+                 * editing the field from there marks a connector dirty at
+                 * exactly the moment that is forbidden.
+                 *
+                 * See TokenFieldMarkAsDirtyWhileWritingResponseTest in the
+                 * add-on module, which pins the same thing without a browser.
+                 */
+                Panel p = new Panel("Container listener");
+                VerticalLayout l = new VerticalLayout();
+                l.setMargin(true);
+                p.setContent(l);
+                addComponent(p);
+
+                final BeanItemContainer<Contact> contacts =
+                        new BeanItemContainer<Contact>(Contact.class);
+                contacts.addBean(new Contact("Linus Torvalds",
+                        "linus.torvalds@example.com"));
+                contacts.addBean(new Contact("Nathan Einstein",
+                        "nathan.einstein@example.com"));
+                contacts.addBean(new Contact("Nicole Beck",
+                        "nicole.beck@example.com"));
+                final Object defaultRecipient = contacts.getIdByIndex(0);
+
+                final TokenField f = new TokenField("Add contact");
+                f.setContainerDataSource(contacts);
+                f.setTokenCaptionPropertyId("name");
+                f.setFilteringMode(FilteringMode.CONTAINS);
+                f.setInputPrompt("Start typing a contact name");
+
+                l.addComponent(new Label("Whenever the contact list changes,"
+                        + " this application makes sure Linus Torvalds is one"
+                        + " of the recipients."));
+                l.addComponent(f);
+
+                contacts.addItemSetChangeListener(
+                        new Container.ItemSetChangeListener() {
+
+                            private static final long serialVersionUID = 1L;
+
+                            @Override
+                            public void containerItemSetChange(
+                                    Container.ItemSetChangeEvent event) {
+                                f.addToken(defaultRecipient);
+                            }
+                        });
             }
         }
     }
