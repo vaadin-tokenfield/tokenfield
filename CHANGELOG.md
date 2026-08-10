@@ -39,6 +39,11 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Directory ZIP manifest now includes `Vaadin-Widgetsets` and `Vaadin-License-File`.
 - Assembly ZIP build no longer overwrites the JAR as the project's main artifact.
 - Fixed "Layout and InsertPosition" Demo
+- Token buttons now show their caption instead of the raw token id when the container data source is
+  set after the value is bound ([#8](https://github.com/vaadin-tokenfield/tokenfield/issues/8)).
+  `getTokenCaption` no longer requires the token to be a member of the container, and
+  `setContainerDataSource` re-configures the existing token buttons so container-provided captions
+  and icons are picked up.
 
 ## [7.0.1]
 
