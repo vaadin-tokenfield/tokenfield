@@ -20,8 +20,11 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
@@ -110,6 +113,9 @@ import com.vaadin.ui.themes.Reindeer;
 public class TokenField extends CustomField<Set<?>> implements Container.Editor {
 
     private static final long serialVersionUID = -4718188396491718742L;
+
+    private static final Logger LOGGER = Logger
+            .getLogger(TokenField.class.getName());
 
     public enum InsertPosition {
         /**
@@ -288,14 +294,94 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
+    /**
+     * Adds a token the user has just entered to the input's container, so that
+     * it is offered as a suggestion from now on.
+     * <p>
+     * The token is added under its own id, and the caption is written to the
+     * caption property if one is configured. A container that will not take an
+     * id from a caller — {@link Container#addItem(Object)} is an optional
+     * operation, and a container that generates its own ids refuses it — keeps
+     * the token out of the suggestions; the token itself is unaffected.
+     * </p>
+     *
+     * @param tokenId
+     *            the token to remember
+     */
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
-
+        // Resolved before the item is added: afterwards a property-based
+        // caption resolves through the container, to the caption property this
+        // is about to write.
+        String caption = getTokenCaption(tokenId);
+        if (addTokenToContainer(tokenId) == null) {
+            return;
+        }
+        // Sets the caption property, if used
+        if (getTokenCaptionPropertyId() != null) {
+            @SuppressWarnings("rawtypes")
+            Property captionProperty = cb.getContainerProperty(tokenId,
+                    getTokenCaptionPropertyId());
+            if (captionProperty != null) {
+                captionProperty.setValue(caption);
             }
+        }
+    }
+
+    /**
+     * Adds an item under the given token id to the input's container, or
+     * answers null if the container will not hold one.
+     *
+     * @see #logForeignTokenId(Object, RuntimeException)
+     */
+    private Item addTokenToContainer(Object tokenId) {
+        try {
+            return cb.addItem(tokenId);
+        } catch (RuntimeException e) {
+            logForeignTokenId(tokenId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Tells whether the input's container holds an item under the given token
+     * id.
+     *
+     * @see #logForeignTokenId(Object, RuntimeException)
+     */
+    private boolean containsToken(Object tokenId) {
+        try {
+            return cb.containsId(tokenId);
+        } catch (RuntimeException e) {
+            logForeignTokenId(tokenId, e);
+            return false;
+        }
+    }
+
+    /**
+     * Records that the container rejected a token id outright, which this
+     * component treats as "the container does not hold this token".
+     * <p>
+     * A token id is not always an id the container can hold. A token entered
+     * by typing is the text the user typed, and a container keyed by something
+     * other than that text — a {@code JPAContainer} of entities keyed by their
+     * {@code Long} id, say — does not answer false when asked about it: it
+     * fails converting the text to an id, or refuses to add one it did not
+     * generate itself. A token the container cannot hold is a token the
+     * container does not hold, and that is an answer, not a failure: the token
+     * is the field's own, and its caption is its own text.
+     * </p>
+     *
+     * @param tokenId
+     *            the token id the container rejected
+     * @param e
+     *            what it threw, logged for a container that is failing for
+     *            some other reason
+     */
+    private static void logForeignTokenId(Object tokenId, RuntimeException e) {
+        if (LOGGER.isLoggable(Level.FINE)) {
+            LOGGER.log(Level.FINE, "Container rejected the token id '"
+                    + tokenId + "'; treating it as one the container does"
+                    + " not hold", e);
         }
     }
 
@@ -707,14 +793,16 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * Gets the caption for the given token; the caption can be based on a
      * property, just as in a ComboBox. Note that the string representation of
      * the tokenId itself is always used if the container does not contain the
-     * id.
-     * 
+     * id — including when the container cannot hold an id of that kind at all,
+     * as is the case for a token the user typed into a container keyed by
+     * something else.
+     *
      * @param tokenId
      *            the id of the token
      * @return the caption
      */
     public String getTokenCaption(Object tokenId) {
-        if (cb.containsId(tokenId)) {
+        if (containsToken(tokenId)) {
             return cb.getItemCaption(tokenId);
         } else {
             return "" + tokenId;
@@ -738,13 +826,22 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     /**
+     * Gets the icon for the given token, from the icon property if one is
+     * configured. As with {@link #getTokenCaption(Object)}, a token id the
+     * container cannot hold simply has no icon to read.
+     *
      * @see ComboBox#getItemIcon(Object)
      * @param tokenId
      *            the id of the token
-     * @return the icon for the given token
+     * @return the icon for the given token, or null if it has none
      */
     public Resource getTokenIcon(Object tokenId) {
-        return cb.getItemIcon(tokenId);
+        try {
+            return cb.getItemIcon(tokenId);
+        } catch (RuntimeException e) {
+            logForeignTokenId(tokenId, e);
+            return null;
+        }
     }
 
     /**
