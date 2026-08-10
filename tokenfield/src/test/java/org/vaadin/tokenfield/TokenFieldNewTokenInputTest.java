@@ -29,6 +29,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 class TokenFieldNewTokenInputTest {
 
     private static final String NAME = "name";
+    private static final String TYPED = "urgent";
 
     /** Minimal UI, only ever used for its {@code ConnectorTracker}. */
     private static class TestUi extends UI {
@@ -65,7 +66,7 @@ class TokenFieldNewTokenInputTest {
         field.setRememberNewTokens(false);
         ui.getConnectorTracker().markAllConnectorsClean();
 
-        field.simulateNewItemInput("urgent");
+        field.simulateNewItemInput(TYPED);
 
         assertWithMessage("Adding a new token must repaint the ComboBox, otherwise"
                 + " the browser keeps showing the text that was just turned into a token")
@@ -77,7 +78,7 @@ class TokenFieldNewTokenInputTest {
         assertWithMessage("rememberNewTokens should default to true")
                 .that(field.isRememberNewTokens()).isTrue();
 
-        field.simulateNewItemInput("urgent");
+        field.simulateNewItemInput(TYPED);
 
         assertThat(inputWillBeRepainted()).isTrue();
     }
@@ -94,7 +95,7 @@ class TokenFieldNewTokenInputTest {
 
     @Test
     void newTokenLeavesTheComboBoxUnselected() {
-        field.simulateNewItemInput("urgent");
+        field.simulateNewItemInput(TYPED);
 
         assertWithMessage("The new token becomes a token button, it is never the"
                 + " ComboBox's own selection")
