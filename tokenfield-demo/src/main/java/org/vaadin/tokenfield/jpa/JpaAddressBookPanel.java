@@ -58,8 +58,8 @@ import com.vaadin.ui.Window;
  * <li>the raw address {@code String} the user typed, for one that is not.</li>
  * </ul>
  * <p>
- * The overrides below all exist to keep the second kind away from the
- * container. {@code TokenField} resolves a caption by asking the container
+ * Keeping the second kind away from the container used to be this panel's
+ * job: {@code TokenField} resolved a caption by asking the container
  * {@code containsId(tokenId)} first, and a {@code JPAContainer} asked whether
  * it contains {@code "new@example.com"} does not answer false — it fails
  * trying to convert that {@code String} to a {@code Long}:
@@ -71,11 +71,16 @@ import com.vaadin.ui.Window;
  * java.lang.Long]
  * </pre>
  * <p>
- * That is <a href=
- * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. Until it
- * is fixed in the add-on, an application over a typed container has to resolve
- * such captions itself, which is what {@link #getTokenCaption(Object)} does
- * here.
+ * That was <a href=
+ * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>, and the
+ * add-on now handles it: a token id the container cannot hold is one the
+ * container does not hold, and its caption is its own text. So this panel
+ * carries the same four overrides the BeanItemContainer one does and nothing
+ * extra for the container's sake. What it does still need is
+ * {@link JpaContacts#findId(String)} in {@link
+ * JpaAddressBookField#onTokenInput(Object)} — not to protect the container,
+ * but because letting a typed name through would write a duplicate row to the
+ * database rather than merely duplicating a bean.
  * </p>
  */
 public class JpaAddressBookPanel extends Panel {
@@ -121,10 +126,7 @@ public class JpaAddressBookPanel extends Panel {
         f.addToken(OFF_BOOK_ADDRESS);
     }
 
-    /**
-     * The field itself, with the same four overrides the BeanItemContainer
-     * panel uses plus {@link #getTokenCaption(Object)}.
-     */
+    /** The field itself, with the same four overrides the other panel uses. */
     private static class JpaAddressBookField extends TokenField {
 
         private static final long serialVersionUID = 1L;
@@ -140,9 +142,10 @@ public class JpaAddressBookPanel extends Panel {
         /**
          * True for a token id that names a row in the address book.
          * <p>
-         * The type test is the whole point: it answers the question
-         * {@code container.containsId(tokenId)} would answer for an in-memory
-         * container, without handing the container an id it cannot hold.
+         * A type test rather than {@code containsId}, because this panel goes
+         * to the container directly in {@link #emailOf(Object)} — and a
+         * container keyed by entity id, handed the address someone typed,
+         * fails converting it rather than answering false.
          * </p>
          */
         private boolean isContact(Object tokenId) {
@@ -197,20 +200,6 @@ public class JpaAddressBookPanel extends Panel {
         @Override
         protected void onTokenDelete(Object tokenId) {
             this.removeToken(tokenId);
-        }
-
-        /**
-         * Resolves the caption without asking the container about an id it
-         * cannot hold — see the class comment and #24. A contact's caption
-         * comes from the container as usual; an off-book token is its own
-         * address.
-         */
-        @Override
-        public String getTokenCaption(Object tokenId) {
-            if (isContact(tokenId)) {
-                return super.getTokenCaption(tokenId);
-            }
-            return String.valueOf(tokenId);
         }
 
         /** custom caption + style if not in 'address book' */
