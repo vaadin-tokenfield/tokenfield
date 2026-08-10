@@ -279,7 +279,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
                 if (rememberNewTokens) {
                     rememberToken(tokenId);
                 }
-                cb.focus();
+                clearInput();
             }
 
         });
@@ -297,6 +297,26 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
             }
         }
+    }
+
+    /*
+     * Hands the input back to the user: empty, and focused.
+     *
+     * Emptying it is not a value change. The token the user typed becomes a
+     * token button, it is never selected in the ComboBox, whose value is null
+     * both before and after. What clears the text the user typed is the client
+     * receiving the ComboBox's (still empty) selection again, and that only
+     * happens when the ComboBox is repainted - hence the explicit markAsDirty.
+     *
+     * ComboBox.DefaultNewItemHandler gets that repaint for free by selecting
+     * the item it creates; we deliberately do not. The only thing that
+     * otherwise marks the ComboBox dirty on this path is the addItem in
+     * rememberToken, so without this the input would keep the typed text
+     * whenever setRememberNewTokens is off.
+     */
+    private void clearInput() {
+        cb.markAsDirty();
+        cb.focus();
     }
 
     /*

@@ -11,8 +11,8 @@ import static com.google.common.truth.Truth.assertThat;
  * default configuration (no {@code tokenCaptionPropertyId}). That property is
  * intentionally out of scope here: {@code rememberToken} adds the new item
  * under its <em>caption</em> but writes the caption property under the
- * original <em>id</em>, which throws when caption and id diverge — see
- * {@code TokenField.java:290-300}.
+ * original <em>id</em>, which corrupts the container when caption and id
+ * diverge — see {@link TokenField#rememberToken(String)}.
  */
 class TokenFieldRememberTokenTest {
 
