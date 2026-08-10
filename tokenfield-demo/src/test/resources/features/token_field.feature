@@ -45,6 +45,20 @@ Feature: TokenField everyday usage
     When I start typing "urg"
     Then "urgent" appears in the suggestion list
 
+  Scenario: Removing a token with Backspace does not pop up the suggestion list
+    Given the "Basic" example
+    And I have added the tokens "first" and "last", in that order
+    When the input is empty and I press Backspace
+    Then the "last" token is removed from the field
+    And no suggestion list is shown
+
+  Scenario: Backspace while editing text still narrows the suggestions
+    Given the "Basic" example
+    And I have added the token "urgent"
+    When I start typing "urgx"
+    And I press Backspace
+    Then "urgent" appears in the suggestion list
+
   Scenario: Adding the same value twice does not create a duplicate token
     Given the "Basic" example
     And I have added the token "urgent"
@@ -250,10 +264,10 @@ Feature: TokenField everyday usage
   # insert position and read-only state. Starts on CssLayout / BEFORE / not
   # read-only.
   #
-  # Note: Backspace under InsertPosition.AFTER is deliberately not covered
-  # here — the client-side "after" flag is never assigned from server
-  # state, so Backspace always deletes regardless of insert position. That
-  # is a known, out-of-scope production gap, not something this suite pins.
+  # Which key deletes the last token follows the insert position: with the
+  # tokens before the input, Backspace reaches back over them; with the
+  # tokens after the input, Delete reaches forward over them. The three
+  # scenarios below pin both halves of that, and the wrong-key no-ops.
   # ---------------------------------------------------------------------
 
   Scenario Outline: Existing tokens survive a layout change
@@ -278,6 +292,29 @@ Feature: TokenField everyday usage
       | position | order  |
       | BEFORE   | before |
       | AFTER    | after  |
+
+  Scenario: Delete removes the most recently added token when tokens sit after the input
+    Given the "Layout and insert position" example
+    And the insert position is set to "AFTER"
+    And I have added the tokens "first" and "last", in that order
+    When the input is empty and I press Delete
+    Then the "last" token is removed from the field
+    And the "first" token remains
+    And no suggestion list is shown
+
+  Scenario: Backspace does not remove a token when tokens sit after the input
+    Given the "Layout and insert position" example
+    And the insert position is set to "AFTER"
+    And I have added the token "kept"
+    When the input is empty and I press Backspace
+    Then the "kept" token remains
+
+  Scenario: Delete does not remove a token when tokens sit before the input
+    Given the "Layout and insert position" example
+    And the insert position is set to "BEFORE"
+    And I have added the token "kept"
+    When the input is empty and I press Delete
+    Then the "kept" token remains
 
   Scenario: Making the field read-only hides the input but keeps existing tokens
     Given the "Layout and insert position" example
