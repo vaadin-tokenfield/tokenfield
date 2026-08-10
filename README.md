@@ -12,7 +12,7 @@ see [NOTICE](NOTICE.txt) for full attribution.
 
 Goals of the fork:
 
-- [x] add a proper testing harness (JUnit 5 unit tests + a Cucumber/Playwright-for-Java BDD browser suite)
+- [x] add a proper testing harness (JUnit 5 unit tests and a Cucumber/Playwright-for-Java BDD browser suite)
 - [ ] fix inherited issues
 - [ ] port to Vaadin 8
 
@@ -137,15 +137,18 @@ suppress a false positive, and how SonarQube analysis is configured.
 
 ## Continuous integration
 
-One workflow, [`build.yml`](.github/workflows/build.yml), on every push to any branch and on pull
-requests from forks — a branch in this repository is already covered by its push, so pull requests
-from it aren't built twice. Four jobs:
+One workflow, [`build.yml`](.github/workflows/build.yml), on every push to any branch and on every
+pull request. Four jobs:
 
-- **static-analysis** — SpotBugs and PMD (see above).
-- **build** — `mvn verify`: unit tests, the coverage floor and the browser BDD suite. A failing run
+- **static-analysis** — SpotBugs and PMD (see above). Runs on pushes and pull requests alike; for a
+  pull request from this repository that checks the commit twice, which buys a run against the
+  merge result rather than the branch alone.
+- **build** — `mvn verify`: unit tests, the coverage floor and the browser BDD suite. Same triggers
+  as static-analysis. A failing run
   uploads the surefire/failsafe reports, the Cucumber report and the Playwright traces of failed
   scenarios as a `test-reports` artifact; a `v*` tag also uploads the Directory add-on ZIP.
-- **sonar** — SonarQube analysis (see above), skipped without a `SONAR_TOKEN` secret.
+- **sonar** — SonarQube analysis (see above). Runs on pull requests, `main` and `v*` tags, not on
+  feature-branch pushes; skipped entirely without a `SONAR_TOKEN` secret.
 - **publish** — needs all three of the above to succeed; deploys a snapshot to GitHub Packages on
   `main`, or publishes a release to Maven Central on `v*` tags. Any static-analysis finding, build
   failure, or failed Sonar quality gate blocks it.

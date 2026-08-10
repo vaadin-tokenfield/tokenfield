@@ -26,6 +26,7 @@ import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
 import com.vaadin.ui.AbstractField;
+import com.vaadin.ui.AbstractOrderedLayout;
 import com.vaadin.ui.AbstractSelect;
 import com.vaadin.ui.AbstractSelect.ItemCaptionMode;
 import com.vaadin.ui.AbstractSelect.NewItemHandler;
@@ -404,8 +405,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         buttons.put(val, b);
 
         if (insertPosition == InsertPosition.BEFORE) {
-            layout.replaceComponent(cb, b);
-            layout.addComponent(cb);
+            insertBeforeInput(b);
         } else {
             layout.addComponent(b);
         }
@@ -413,6 +413,35 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             ((HorizontalLayout) layout).setExpandRatio(cb, 1.0f);
         }
 
+    }
+
+    /**
+     * Inserts the new token button in front of the input.
+     * <p>
+     * The basic {@code ComponentContainer} does not provide an index-based insertion method.
+     * Swapping the two and re-appending the input reaches the same arrangement,
+     * but it detaches the input first, which costs a full repaint of the input
+     * for every token added. So we want to avoid that, if possible, by using
+     * index-based insertion - if the layout supports it.
+     * </p>
+     */
+    private void insertBeforeInput(Button b) {
+        if (layout instanceof CssLayout) {
+            CssLayout l = (CssLayout) layout;
+            int inputIndex = Math.max(l.getComponentIndex(cb), 0);
+            l.addComponent(b, inputIndex);
+            return;
+        }
+        if (layout instanceof AbstractOrderedLayout) {
+            AbstractOrderedLayout l = ((AbstractOrderedLayout) layout);
+            int inputIndex = Math.max(l.getComponentIndex(cb), 0);
+            l.addComponent(b, inputIndex);
+            return;
+        }
+
+        // fall back to swapping and re-adding the input if we can't optimize
+        layout.replaceComponent(cb, b);
+        layout.addComponent(cb);
     }
 
     /**

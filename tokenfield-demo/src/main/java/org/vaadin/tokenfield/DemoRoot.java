@@ -15,6 +15,7 @@
  */
 package org.vaadin.tokenfield;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Random;
@@ -22,6 +23,8 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.vaadin.tokenfield.TokenField.InsertPosition;
+import org.vaadin.tokenfield.jpa.JpaAddressBookPanel;
+import org.vaadin.tokenfield.jpa.JpaContacts;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Property.ValueChangeEvent;
@@ -53,6 +56,12 @@ public class DemoRoot extends UI {
 
     @Override
     protected void init(VaadinRequest request) {
+
+        // The JPA panel below sits on an in-memory database, and unlike the
+        // BeanItemContainer address book beside it that database outlives the
+        // UI that edited it. Reseeding here gives every visit the same
+        // starting address book; see JpaContacts.resetToSeedData.
+        JpaContacts.resetToSeedData();
 
         setContent(new Content());
     }
@@ -178,8 +187,9 @@ public class DemoRoot extends UI {
                     // show confirm dialog
                     @Override
                     protected void onTokenClick(final Object tokenId) {
+                        Contact c = (Contact) tokenId;
                         getUI().addWindow(
-                                new RemoveWindow((Contact) tokenId, this));
+                                new RemoveWindow(c, c.getName(), this));
                     }
 
                     // just delete, no confirm
@@ -367,6 +377,17 @@ public class DemoRoot extends UI {
                 lo.setExpandRatio(f, 1.0f);
 
             }
+
+            {
+                /*
+                 * The "Full featured example" above, over a JPAContainer. Same
+                 * address book, same pre-added tokens, same dialogs - so the
+                 * browser suite runs one set of address-book scenarios against
+                 * both and the container is the only difference.
+                 */
+                addComponent(new JpaAddressBookPanel());
+            }
+
         }
     }
 
@@ -392,9 +413,12 @@ public class DemoRoot extends UI {
             setStyleName("black");
             setResizable(false);
 
-            // Just bind a Form to the Contact -pojo via BeanItem
+            // Just bind a Form to the Contact -pojo via BeanItem. Contact
+            // doubles as the JPA entity behind the panel below, so it carries a
+            // generated id as well; that is not the user's business here.
             Form form = new Form();
-            form.setItemDataSource(new BeanItem<Contact>(contact));
+            form.setItemDataSource(new BeanItem<Contact>(contact),
+                    Arrays.asList("name", "email"));
             form.setImmediate(true);
             l.addComponent(form);
 
@@ -476,61 +500,25 @@ public class DemoRoot extends UI {
     }
 
     /**
-     * Example Contact -bean, mostly generated setters/getters.
-     */
-    public static class Contact {
-        private String name;
-        private String email;
-
-        public Contact(String name, String email) {
-            this.name = name;
-            this.email = email;
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public void setName(String name) {
-            this.name = name;
-        }
-
-        public String getEmail() {
-            return email;
-        }
-
-        public void setEmail(String email) {
-            this.email = email;
-        }
-
-        public String toString() {
-            return email;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (obj instanceof Contact) {
-                return email.equals(((Contact) obj).getEmail());
-            }
-            return false;
-        }
-
-        @Override
-        public int hashCode() {
-            return email.hashCode();
-        }
-
-    }
-
-    /**
      * This is the window used to confirm removal
      */
     public static class RemoveWindow extends Window {
 
         private static final long serialVersionUID = -7140907025722511460L;
 
-        RemoveWindow(final Contact c, final TokenField f) {
-            super("Remove " + c.getName() + "?");
+        /**
+         * @param tokenId
+         *            the token to remove on confirmation — a {@code Contact}
+         *            for the BeanItemContainer panel, an entity id for the JPA
+         *            one
+         * @param name
+         *            what to call it in the caption
+         * @param f
+         *            the field to remove it from
+         */
+        public RemoveWindow(final Object tokenId, final String name,
+                final TokenField f) {
+            super("Remove " + name + "?");
 
             VerticalLayout l = new VerticalLayout();
             setContent(l);
@@ -564,7 +552,7 @@ public class DemoRoot extends UI {
                 private static final long serialVersionUID = 5004855711589989635L;
 
                 public void buttonClick(ClickEvent event) {
-                    f.removeToken(c);
+                    f.removeToken(tokenId);
                     f.getUI().removeWindow(RemoveWindow.this);
                 }
             });

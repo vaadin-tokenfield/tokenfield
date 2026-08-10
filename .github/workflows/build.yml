@@ -22,12 +22,15 @@ jobs:
   # others' output, and this repo's build is fast enough (~2 min) that a shared
   # "compile once" job would cost more in per-job overhead than it saves. See
   # docs/code-quality.md for the measurements behind that call.
+
+  # These two run on every trigger, pull requests included. For a pull request
+  # from this repository that means the commit is checked twice — once as a
+  # branch push, once as the pull request — which is deliberate: the
+  # pull_request event checks out the merge result, so it catches a semantic
+  # conflict with main that a branch-only build cannot see, and it keeps the
+  # pull request's own check list complete rather than borrowing the branch's.
   static-analysis:
     name: SpotBugs & PMD
-    # Branches in this repository are already built by the push event above;
-    # the pull_request event is what covers pull requests from forks, whose
-    # commits never land here as a push.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
 
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -72,7 +75,6 @@ jobs:
 
   build:
     name: Build
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
 
     runs-on: ubuntu-latest
     # The browser suite is the long pole of this job; cap it so a hung browser
@@ -160,7 +162,21 @@ jobs:
 
   sonar:
     name: SonarQube analysis
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    # Unlike the two jobs above, this one does not run on every branch push.
+    # Analysis of a short-lived branch is not available on this project's
+    # SonarQube Cloud plan: such a run uploads its report fine and then fails
+    # reading the quality gate with "Not authorized or project not found",
+    # reddening every feature branch. Pull request analysis is available — and
+    # is where a finding can still change the outcome anyway — so: pull
+    # requests, main, and release tags.
+    #
+    # Tags matter because the publish job `needs` this one, and GitHub skips a
+    # job whose dependency was skipped — dropping tags here would silently stop
+    # releases from publishing.
+    if: >-
+      github.event_name == 'pull_request'
+      || github.ref == 'refs/heads/main'
+      || startsWith(github.ref, 'refs/tags/v')
 
     runs-on: ubuntu-latest
     timeout-minutes: 20
