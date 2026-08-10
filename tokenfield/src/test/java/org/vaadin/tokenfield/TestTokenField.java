@@ -89,6 +89,14 @@ public class TestTokenField extends TokenField {
         setLayout(lo);
     }
 
+    /**
+     * Exposes the protected {@link TokenField#rememberToken(String)} for
+     * direct invocation from same-package tests.
+     */
+    public void callRememberToken(String tokenId) {
+        rememberToken(tokenId);
+    }
+
     // -----------------------------------------------------------------------
     // Accessors for test assertions
     // -----------------------------------------------------------------------

@@ -279,6 +279,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
                 if (rememberNewTokens) {
                     rememberToken(tokenId);
                 }
+                cb.setValue(null);
                 cb.focus();
             }
 
@@ -289,11 +290,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
+        // Resolved before the item is added: once tokenId is in the container,
+        // a property-based caption resolves to the still-unset caption property
+        // instead of the token text the user actually typed.
+        String caption = getTokenCaption(tokenId);
+        if (cb.addItem(tokenId) != null) {
             // Sets the caption property, if used
             if (getTokenCaptionPropertyId() != null) {
                 cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
+                        .setValue(caption);
 
             }
         }
