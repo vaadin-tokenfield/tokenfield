@@ -33,6 +33,12 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 
 ### Fixed
 
+- A token entered by typing no longer reaches the container as if it were an item id
+  ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24)). Caption and icon lookups
+  treat a token id the container cannot hold as one it does not hold, and `rememberToken` adds
+  the new item under its id — writing the caption to the caption property — instead of adding it
+  under its caption. This is what makes a `JPAContainer`, or any container keyed by something
+  other than the token text, usable with typed tokens.
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.
 - Add-on JAR no longer carries an unresolvable `Class-Path` manifest entry.

@@ -112,10 +112,10 @@ public final class JpaContacts {
      * displayed name or the whole email address, ignoring case.
      * <p>
      * This is what lets the JPA address-book panel tell "the user picked
-     * someone already in the book" from "the user typed a new address" without
-     * handing raw text to the container: a {@code JPAContainer} is keyed by
-     * entity id, and asking it {@code containsId("Nathan Einstein")} fails
-     * trying to turn that {@code String} into a {@code Long}.
+     * someone already in the book" from "the user typed a new address": a
+     * {@code JPAContainer} is keyed by entity id, so the container cannot
+     * answer that question about raw text, and adding the contact a second
+     * time would write a duplicate row rather than merely duplicating a bean.
      * </p>
      *
      * @param nameOrEmail
