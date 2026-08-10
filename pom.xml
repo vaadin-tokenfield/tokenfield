@@ -38,6 +38,18 @@
         <vaadin.version>7.7.17</vaadin.version>
         <vaadin.plugin.version>${vaadin.version}</vaadin.plugin.version>
 
+        <!--
+            Used only by the demo's issue #15 reproduction panel. JPAContainer
+            3.2.0 is the last release of the add-on built against Vaadin 7 (4.0.0
+            moved to Vaadin 8), and is published to the Vaadin Add-on Directory
+            repository declared below, not to Maven Central.
+            EclipseLink 2.7.x is the last javax.persistence line, and H2 2.2.x the
+            last that runs on Java 8 - both match what this project builds against.
+        -->
+        <jpacontainer.version>3.2.0</jpacontainer.version>
+        <eclipselink.version>2.7.16</eclipselink.version>
+        <h2.version>2.2.224</h2.version>
+
         <junit.version>5.14.4</junit.version>
         <truth.version>1.4.5</truth.version>
         <playwright.version>1.62.0</playwright.version>
@@ -176,6 +188,27 @@
                 <version>${junit.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!--
+                Note the artifactId: the jar file is named
+                vaadin-jpacontainer-3.2.0.jar (the add-on POM sets that as its
+                build finalName), but the artifact's coordinate is plain
+                "jpacontainer".
+            -->
+            <dependency>
+                <groupId>com.vaadin.addon</groupId>
+                <artifactId>jpacontainer</artifactId>
+                <version>${jpacontainer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.eclipse.persistence</groupId>
+                <artifactId>org.eclipse.persistence.jpa</artifactId>
+                <version>${eclipselink.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.h2database</groupId>
+                <artifactId>h2</artifactId>
+                <version>${h2.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.microsoft.playwright</groupId>

@@ -13,41 +13,23 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   Published as a new Vaadin Directory listing, "TokenField Reloaded" — this fork does not own and
   cannot update the original "TokenField" listing.
 - Rebuilt on Vaadin 7.7.17 and Java 8.
+- Optimize `InsertPosition.BEFORE` token inserts on known layouts to avoid full repaints of the input.
 
 ### Added
 
-- Add Maven-based Project packaging
+- Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
-- JUnit 5 unit test suite (114 tests) covering container handling, buffering, read-only state,
+- JUnit 5 unit test suite covering container handling, buffering, read-only state,
   insert position, button configuration, delegation, sizing, captions/icons, layout swapping,
   the delete-key path, and UI input behavior.
 - JaCoCo coverage reporting and a build-failing line-coverage threshold (90%) on the add-on module.
-- A Cucumber-JVM BDD browser suite (27 scenarios across all five demo panels), driven by
-  Playwright for Java and run under `maven-failsafe-plugin` against a `jetty-maven-plugin`-managed
-  instance of the demo as part of `mvn verify`/`install` by default, locally and in CI alike
-  (`-DskipITs=true` to skip). The spec
-  itself — `tokenfield-demo/src/test/resources/features/token_field.feature` — reads as living
-  documentation of how a user works with `TokenField`; `RunCucumberIT` (JUnit Platform Suite +
-  `cucumber-junit-platform-engine`) is what failsafe actually discovers, `PlaywrightHooks` owns the
-  browser/page lifecycle per scenario (Jupiter extensions like `@UsePlaywright` don't reach the
-  Cucumber engine), and `cucumber-picocontainer` shares state into the step classes through a
-  `DemoWorld`. Replaces the five `*IT.java` classes (26 tests) from the initial Playwright-for-Java
-  port, and before that an earlier, disconnected TypeScript/Node Playwright suite that never ran in
-  CI and required a manually pre-started server.
-- `RunCucumberIT` also runs directly from an IDE, without the Maven-managed server: `DemoServer` boots
-  an embedded Jetty on a free port when `it.baseUrl` isn't set by failsafe. Requires one `mvn package`
-  to build the widgetset first; see the README's "Running the browser tests from an IDE" section.
-- CI now builds every branch, not just `main` and pull requests, so work in progress is verified
-  before it reaches a pull request. Publishing stays limited to `main` (snapshots) and `v*` tags
-  (releases), and the build job is capped at 30 minutes so a hung browser or server fails the run
-  instead of occupying a runner. Test reports, the Cucumber HTML report and the Playwright traces of
-  failed scenarios are uploaded as an artifact when a build fails.
-- Automated code-quality review on every push and pull request (`Code Quality` workflow): SpotBugs
-  (Max effort, default Medium threshold) and PMD (fails on priority 1–2 findings), both runnable
-  locally as `./mvnw test-compile spotbugs:check pmd:check`, plus a SonarQube job that stays inert
-  until a `SONAR_TOKEN` secret is configured. The Sonar analysis imports unit-test line coverage from
-  JaCoCo's XML report. See [docs/code-quality.md](docs/code-quality.md).
+- A Cucumber-JVM BDD browser suite, driven by Playwright for Java and 
+  run under `maven-failsafe-plugin` against the Demo application.
+- A demo panel showing the component usage with a JPAContainer (using an in-memory H2 database)
+- Automated CI build and code-quality review on every push and pull request
+  (using SpotBugs, PMD, and SonarQube). 
+  See [docs/code-quality.md](docs/code-quality.md).
 
 ### Fixed
 

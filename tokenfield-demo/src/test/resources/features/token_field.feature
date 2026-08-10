@@ -3,7 +3,7 @@ Feature: TokenField everyday usage
   I want to add, review and remove tokens with the keyboard or the mouse
   So that I can build up a list of values without leaving the field
 
-  # Each scenario below opens one of the demo's five example panels, chosen
+  # Each scenario below opens one of the demo's six example panels, chosen
   # by a business-language name rather than the demo's own on-screen Panel
   # caption (see DemoSteps#panelIndexFor):
   #   "Basic"                         -> "Basic"
@@ -11,9 +11,10 @@ Feature: TokenField everyday usage
   #   "Address book"                  -> "Full featured example"
   #   "Data binding and buffering"    -> "Data binding and buffering"
   #   "Layout and insert position"    -> "Layout and InsertPosition"
+  #   "JPA address book"              -> "Full featured example, JPAContainer"
 
-  Scenario: The demo shows all five examples with their inputs ready
-    Then the demo page shows all five example panels, each with its own input
+  Scenario: The demo shows all six examples with their inputs ready
+    Then the demo page shows all six example panels, each with its own input
 
   # ---------------------------------------------------------------------
   # Basic — plain TokenField, default settings.
@@ -72,42 +73,81 @@ Feature: TokenField everyday usage
     Then the input shows the placeholder "tag, another, yetanother"
 
   # ---------------------------------------------------------------------
-  # Address book — TokenField backed by an address-book container, seeded
-  # deterministically (DemoRoot.generateTestContainer() uses `new
-  # Random(5)`) with two contacts already added as tokens plus one
-  # off-container email. Tokens display as "Name <email>"; typing an
-  # address that isn't in the address book prompts to add it there.
+  # Address book — TokenField backed by an address-book container, with two
+  # contacts already added as tokens plus one off-container email. Tokens
+  # display as "Name <email>"; typing an address that isn't in the address
+  # book prompts to add it there.
+  #
+  # Every scenario in this section runs twice, against two panels that
+  # differ only in their container:
+  #
+  #   "Address book"     -> a BeanItemContainer of Contact beans, seeded
+  #                         deterministically (DemoRoot.generateTestContainer()
+  #                         uses `new Random(5)`), item id = the bean.
+  #   "JPA address book" -> a JPAContainer over an H2 in-memory database,
+  #                         seeded from JpaContacts.CONTACTS to match,
+  #                         item id = the generated entity id.
+  #
+  # Running one spec against both is the point: it is what says TokenField's
+  # full feature set works over a lazy, database-backed container and not
+  # only an in-memory one. Where the JPA panel needs application code the
+  # BeanItemContainer one does not, JpaAddressBookPanel says why.
   # ---------------------------------------------------------------------
 
-  Scenario: The seeded contacts are shown with their name and email
-    Given the "Address book" example
+  Scenario Outline: The seeded contacts are shown with their name and email
+    Given the "<example>" example
     Then a token chip labeled "Linus Adams <linus.adams@example.com>" appears in the field
     And a token chip labeled "Robert Jones <robert.jones@example.com>" appears in the field
     And a token chip labeled "thatnewguy@example.com <thatnewguy@example.com>" appears in the field
 
-  Scenario: A token added off the address book is visually marked as such
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: A token added off the address book is visually marked as such
+    Given the "<example>" example
     Then the "thatnewguy@example.com" token is marked as not part of the address book
     And the "Linus Adams" token is not marked as off-book
 
-  Scenario: Typing part of a name filters the suggestions to matches
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: Typing part of a name filters the suggestions to matches
+    Given the "<example>" example
     When I start typing "e"
     Then all visible suggestions contain "e"
 
-  Scenario: Selecting a suggested contact adds it as a token immediately
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: Selecting a suggested contact adds it as a token immediately
+    Given the "<example>" example
     When I type "Einstein" and pick the matching suggestion
     Then a token chip labeled "Nathan Einstein" appears in the field
     And no confirmation window is shown
 
-  Scenario: Entering an address not in the address book asks whether to keep it
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: Entering an address not in the address book asks whether to keep it
+    Given the "<example>" example
     When I type "new@example.com" and press Enter
     Then a "New Contact" window opens
 
-  Scenario: Declining to add a new contact still keeps it as a token for this field
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: Declining to add a new contact still keeps it as a token for this field
+    Given the "<example>" example
     When I type "new@example.com" and press Enter
     Then a "New Contact" window opens
     When I choose "Don't add" in the "New Contact" window
@@ -115,8 +155,17 @@ Feature: TokenField everyday usage
     And a token chip labeled "new@example.com" appears in the field
     And the "new@example.com" token is marked as not part of the address book
 
-  Scenario: Adding a new contact makes it a regular, unmarked token
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  # For the JPA panel this is the one scenario that writes to the database:
+  # "Add to contacts" persists the contact and adds the entity id it is
+  # given back as the token. Every UI init reseeds the table, so the row it
+  # leaves behind does not carry into the next scenario.
+  Scenario Outline: Adding a new contact makes it a regular, unmarked token
+    Given the "<example>" example
     When I type "another@example.com" and press Enter
     Then a "New Contact" window opens
     When I choose "Add to contacts" in the "New Contact" window
@@ -124,31 +173,51 @@ Feature: TokenField everyday usage
     And a token chip labeled "another@example.com" appears in the field
     And the "another@example.com" token is not marked as off-book
 
-  Scenario: Cancelling removal of an existing contact's token keeps it
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: Cancelling removal of an existing contact's token keeps it
+    Given the "<example>" example
     When I click the "Linus Adams" token chip
     Then a "Remove Linus Adams" window opens
     When I choose "Cancel" in the "Remove Linus Adams" window
     Then the "Remove Linus Adams" window closes
     And a token chip labeled "Linus Adams" appears in the field
 
-  Scenario: Confirming removal of an existing contact's token deletes it
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  Scenario Outline: Confirming removal of an existing contact's token deletes it
+    Given the "<example>" example
     When I click the "Robert Jones" token chip
     Then a "Remove Robert Jones" window opens
     When I choose "Remove" in the "Remove Robert Jones" window
     Then the "Remove Robert Jones" window closes
     And the "Robert Jones" token is removed from the field
 
-  # The client-side onTokenDelete override for this panel bypasses
-  # RemoveWindow entirely for the Backspace path.
-  Scenario: Backspace removes the last contact token without asking for confirmation
-    Given the "Address book" example
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
+
+  # The onTokenDelete override for these panels bypasses RemoveWindow
+  # entirely for the Backspace path.
+  Scenario Outline: Backspace removes the last contact token without asking for confirmation
+    Given the "<example>" example
     When the input is empty and I press Backspace
     Then no confirmation window is shown
     And the "thatnewguy@example.com" token is removed from the field
     And a token chip labeled "Linus Adams" appears in the field
     And a token chip labeled "Robert Jones" appears in the field
+
+    Examples:
+      | example          |
+      | Address book     |
+      | JPA address book |
 
   # ---------------------------------------------------------------------
   # Data binding and buffering — TokenField shares its item container with
@@ -218,3 +287,22 @@ Feature: TokenField everyday usage
     And a token chip labeled "kept" appears in the field
     When I mark the field as editable again
     Then the text input reappears
+
+  # ---------------------------------------------------------------------
+  # JPA address book, on its own — the scenarios above already cover this
+  # panel's behaviour against the BeanItemContainer one. What is left is
+  # the one place the two deliberately differ.
+  #
+  # Typing a whole value that names someone already in the address book:
+  # the BeanItemContainer panel treats typed text as an email address, so
+  # a name does not match and it offers to add a new contact. The JPA
+  # panel resolves the text against the container by name or email first
+  # (JpaContacts.findId), because letting it through would write a
+  # duplicate row to the database rather than just duplicating a bean.
+  # ---------------------------------------------------------------------
+
+  Scenario: Typing the name of an existing contact adds that contact
+    Given the "JPA address book" example
+    When I type "Nathan Einstein" and press Enter
+    Then a token chip labeled "Nathan Einstein <nathan.einstein@example.com>" appears in the field
+    And no confirmation window is shown

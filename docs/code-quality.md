@@ -6,9 +6,9 @@ Automated review of every push and every pull request, as three parallel jobs in
 
 | Job | Runs | Gate |
 | --- | --- | --- |
-| **static-analysis** | always, on Java 8 | fails on SpotBugs findings at the default *Medium* threshold, and on PMD priority 1–2 findings |
-| **build** | always | unit tests, the JaCoCo coverage floor and the browser BDD suite (`mvn verify`) |
-| **sonar** | only once a `SONAR_TOKEN` secret exists | Sonar's own quality gate, via `-Dsonar.qualitygate.wait=true` |
+| **static-analysis** | every push and every pull request, on Java 8 | fails on SpotBugs findings at the default *Medium* threshold, and on PMD priority 1–2 findings |
+| **build** | every push and every pull request | unit tests, the JaCoCo coverage floor and the browser BDD suite (`mvn verify`) |
+| **sonar** | pull requests, `main` and `v*` tags — not feature-branch pushes — and only once a `SONAR_TOKEN` secret exists | Sonar's own quality gate, via `-Dsonar.qualitygate.wait=true` |
 
 `publish` declares `needs: [static-analysis, build, sonar]`. GitHub Actions skips a job whose
 `needs` didn't all succeed, so a SpotBugs/PMD finding, a build failure or a failed Sonar quality
@@ -67,7 +67,9 @@ the bug pattern, so a genuine occurrence elsewhere still fails the check — and
 The `sonar` job degrades gracefully without credentials: its `Check for Sonar credentials` step
 prints a notice and every later step is skipped until the repository has a `SONAR_TOKEN` secret,
 because no workflow can create the Sonar-side project and token for us. **This repository already
-has one configured**, so the job runs for real against sonarcloud.io on every push. To set it up
+has one configured**, so the job runs for real against sonarcloud.io — on pull requests, `main` and
+`v*` tags only, because analysis of a short-lived branch is not available on this project's plan and
+fails the quality-gate read. To set it up
 on a fork or a new project:
 
 1. Create the project in [SonarQube Cloud](https://sonarcloud.io) (or on your own SonarQube server)

@@ -20,6 +20,7 @@
              fast inner loop with `-DskipITs=true`. -->
         <skipITs>false</skipITs>
         <it.stop.key>tokenfield-it</it.stop.key>
+
     </properties>
 
     <dependencies>
@@ -40,6 +41,26 @@
         <dependency>
             <groupId>com.vaadin</groupId>
             <artifactId>vaadin-themes</artifactId>
+        </dependency>
+
+        <!--
+            For the "JPAContainer" demo panel:
+            the add-on itself, a JPA 2.1 provider to back it, and an in-memory database so the
+            WAR needs no external setup. EclipseLink 2.7.x and H2 2.2.x are the last
+            lines of each that still target javax.persistence and Java 8
+            respectively, which is what this project builds against.
+        -->
+        <dependency>
+            <groupId>com.vaadin.addon</groupId>
+            <artifactId>jpacontainer</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.persistence</groupId>
+            <artifactId>org.eclipse.persistence.jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
         </dependency>
 
         <!-- Browser integration tests -->
