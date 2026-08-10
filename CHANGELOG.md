@@ -39,6 +39,9 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Directory ZIP manifest now includes `Vaadin-Widgetsets` and `Vaadin-License-File`.
 - Assembly ZIP build no longer overwrites the JAR as the project's main artifact.
 - Fixed "Layout and InsertPosition" Demo
+- Entering a new token now always clears the input ([#14](https://github.com/vaadin-tokenfield/tokenfield/issues/14)).
+  The typed text stayed behind whenever nothing else happened to repaint the ComboBox — most visibly
+  with `setRememberNewTokens(false)`.
 
 ## [7.0.1]
 

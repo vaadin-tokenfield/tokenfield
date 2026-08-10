@@ -136,10 +136,14 @@ Feature: TokenField everyday usage
       | Address book     |
       | JPA address book |
 
+  # The trailing input check is issue #14: these panels remember nothing
+  # (setRememberNewTokens(false)), which used to leave the address the user
+  # typed sitting in the input after it had been turned into a token.
   Scenario Outline: Entering an address not in the address book asks whether to keep it
     Given the "<example>" example
     When I type "new@example.com" and press Enter
     Then a "New Contact" window opens
+    And the input no longer shows "new@example.com"
 
     Examples:
       | example          |

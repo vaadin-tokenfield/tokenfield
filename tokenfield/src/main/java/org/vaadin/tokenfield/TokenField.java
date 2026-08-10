@@ -279,6 +279,19 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
                 if (rememberNewTokens) {
                     rememberToken(tokenId);
                 }
+                /*
+                 * The typed text is now a token button, so it must disappear
+                 * from the input. The client does that when it receives the
+                 * ComboBox's (still empty) selection - which only happens if
+                 * the ComboBox is repainted. Nothing above guarantees that:
+                 * ComboBox.DefaultNewItemHandler gets the repaint for free by
+                 * selecting the new item, but we deliberately do not select
+                 * it. When rememberNewTokens is on, rememberToken's addItem()
+                 * happens to mark the ComboBox dirty and hides the omission;
+                 * when it is off, the input keeps the text. So ask for the
+                 * repaint explicitly.
+                 */
+                cb.markAsDirty();
                 cb.focus();
             }
 
