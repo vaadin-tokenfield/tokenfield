@@ -73,9 +73,10 @@ import com.vaadin.ui.Window;
  * That is <a href=
  * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. The
  * add-on reads such a refusal as "no such item", so an off-book token resolves
- * to an empty caption instead of propagating the exception. This panel builds
- * its own {@code Name <email>} caption and so still needs text for those
- * tokens, which is what {@link #getTokenCaption(Object)} supplies here.
+ * to its own string representation instead of propagating the exception. The
+ * {@link #getTokenCaption(Object)} override below now arrives at the same
+ * answer as the add-on would and is kept only to spell the rule out in one
+ * place; an application written against this version does not need it.
  * </p>
  */
 public class JpaAddressBookPanel extends Panel {

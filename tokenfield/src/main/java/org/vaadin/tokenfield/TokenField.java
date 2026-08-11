@@ -88,10 +88,12 @@ import com.vaadin.ui.themes.Reindeer;
  * <p>
  * Caption and icon of a token button are <i>derived</i> from the current
  * configuration - the {@link ItemCaptionMode}, the explicit captions and icons,
- * and the container - exactly as {@link AbstractSelect} derives them for its
- * options. They are re-derived whenever any of those change, so the order in
- * which the field is configured does not affect the result. Data changes the
- * component cannot observe can be picked up with {@link #refreshTokens()}.
+ * and the container - as {@link AbstractSelect} derives them for its options
+ * (see {@link #getTokenCaption(Object)} for the one deviation, which concerns
+ * tokens outside the container). They are re-derived whenever any of those
+ * change, so the order in which the field is configured does not affect the
+ * result. Data changes the component cannot observe can be picked up with
+ * {@link #refreshTokens()}.
  * </p>
  *
  * <p>
@@ -603,9 +605,8 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     /**
      * Resolves the text a token button displays for the given token.
      * <p>
-     * This is {@link #getTokenCaption(Object)}, which follows the
-     * {@link ItemCaptionMode} exactly and may legitimately be empty - under
-     * {@link ItemCaptionMode#ICON_ONLY}, or under
+     * This is {@link #getTokenCaption(Object)}, which may legitimately be empty
+     * - under {@link ItemCaptionMode#ICON_ONLY}, or under
      * {@link ItemCaptionMode#EXPLICIT} for a token that has no explicit
      * caption. A token button is not an option in a dropdown but the only
      * handle the user has on the token, so an empty caption falls back to the
@@ -812,13 +813,24 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     /**
-     * Gets the caption for the given token; works exactly as
+     * Gets the caption for the given token; works as
      * {@link ComboBox#getItemCaption(Object)}, and like it applies to any
      * tokenId - a token need not be present in the container.
      * <p>
-     * The result follows the {@link ItemCaptionMode} and may be empty when the
-     * mode resolves to nothing. What a token <i>button</i> displays in that
-     * case is decided by {@link #getTokenButtonCaption(Object)}.
+     * One deliberate deviation from {@link AbstractSelect}:
+     * {@link ItemCaptionMode#ITEM} and {@link ItemCaptionMode#PROPERTY} read the
+     * caption off the container item, so for a token the container does not
+     * contain a select has nothing to show and answers with the empty string.
+     * A token outside the container is a supported case here rather than an
+     * anomaly, so those two modes fall back to the string representation of the
+     * tokenId instead. A token the container <i>does</i> contain keeps the
+     * select's answer, empty caption included.
+     * </p>
+     * <p>
+     * The result otherwise follows the {@link ItemCaptionMode} and may be empty
+     * when the mode resolves to nothing - under {@link ItemCaptionMode#EXPLICIT}
+     * or {@link ItemCaptionMode#ICON_ONLY}. What a token <i>button</i> displays
+     * in that case is decided by {@link #getTokenButtonCaption(Object)}.
      * </p>
      *
      * @see AbstractSelect#getItemCaption(Object)
@@ -827,6 +839,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @return the caption
      */
     public String getTokenCaption(Object tokenId) {
+        ItemCaptionMode mode = getTokenCaptionMode();
+        if ((mode == ItemCaptionMode.ITEM || mode == ItemCaptionMode.PROPERTY)
+                && !cb.containsId(tokenId)) {
+            return String.valueOf(tokenId);
+        }
         return cb.getItemCaption(tokenId);
     }
 

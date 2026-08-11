@@ -161,6 +161,70 @@ class TokenFieldCaptionDerivationTest {
                 .that(field.getTokenCaption("no-caption")).isEmpty();
     }
 
+    /**
+     * ITEM and PROPERTY read the caption off the container item, so a select
+     * answers with the empty string for an id it does not hold. A token outside
+     * the container is a supported case here, so those two modes stand it in
+     * with the tokenId - the one documented deviation from AbstractSelect.
+     */
+    @ParameterizedTest
+    @EnumSource(value = ItemCaptionMode.class, names = { "ITEM", "PROPERTY" })
+    void containerBackedModesNameATokenTheContainerDoesNotHold(
+            ItemCaptionMode mode) {
+        TestTokenField field = configureFirst(mode, container());
+
+        assertWithMessage(mode + " must not leave an outside token nameless")
+                .that(field.getTokenCaption(OUT)).isEqualTo(OUT);
+    }
+
+    /**
+     * The deviation is scoped to tokens the container does not hold. A token it
+     * does hold keeps the select's answer — for PROPERTY with an unset property
+     * that is the empty string, and the tokenId must not stand in for it.
+     */
+    @Test
+    void aContainedTokenWithAnUnsetPropertyKeepsItsEmptyCaption() {
+        IndexedContainer c = new IndexedContainer();
+        c.addContainerProperty("name", String.class, null);
+        c.addItem(IN); // "name" stays null
+
+        TestTokenField field = new TestTokenField();
+        field.setContainerDataSource(c);
+        field.setTokenCaptionPropertyId("name");
+        field.addToken(IN);
+
+        assertWithMessage("The fallback is about absence from the container,"
+                + " not about an empty property value")
+                .that(field.getTokenCaption(IN)).isEmpty();
+        assertWithMessage("The button still needs something to show")
+                .that(caption(field, IN)).isEqualTo(IN);
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = ItemCaptionMode.class, names = { "EXPLICIT",
+            "ICON_ONLY" })
+    void modesThatAreEmptyByDesignStayEmptyOutsideTheContainer(
+            ItemCaptionMode mode) {
+        TestTokenField field = new TestTokenField();
+        field.setTokenCaptionMode(mode);
+
+        assertWithMessage(mode + " resolves to nothing by design, not for lack"
+                + " of a container item")
+                .that(field.getTokenCaption(OUT)).isEmpty();
+    }
+
+    @Test
+    void anIconDoesNotSuppressTheNameOfAnOutsideToken() {
+        TestTokenField field = new TestTokenField();
+        field.setTokenCaptionPropertyId("name");
+        field.setTokenIcon(OUT, new ThemeResource("icons/token.png"));
+        field.addToken(OUT);
+
+        assertWithMessage("PROPERTY now yields a caption, so the icon-only"
+                + " shortcut in getTokenButtonCaption does not apply")
+                .that(caption(field, OUT)).isEqualTo(OUT);
+    }
+
     @Test
     void anIconCarriesTheTokenSoTheCaptionStaysEmpty() {
         TestTokenField field = new TestTokenField();

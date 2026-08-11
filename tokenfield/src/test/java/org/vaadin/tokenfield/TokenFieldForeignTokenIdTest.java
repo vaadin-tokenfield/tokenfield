@@ -80,7 +80,15 @@ class TokenFieldForeignTokenIdTest {
 
     @Test
     void getTokenCaptionDoesNotPropagateTheContainersRefusal() {
-        assertThat(field.getTokenCaption(FOREIGN)).isEmpty();
+        // The refusal reads as "not contained", so the PROPERTY-mode fallback
+        // for tokens outside the container applies
+        assertThat(field.getTokenCaption(FOREIGN)).isEqualTo(FOREIGN);
+    }
+
+    @Test
+    void containsIdDoesNotPropagateTheContainersRefusal() {
+        assertThat(field.getComboBox().containsId(FOREIGN)).isFalse();
+        assertThat(field.getComboBox().containsId(CONTAINED)).isTrue();
     }
 
     @Test
