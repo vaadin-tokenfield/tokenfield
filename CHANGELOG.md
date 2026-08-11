@@ -44,8 +44,6 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 
 - Token captions and icons no longer depend on the order of the initialisation calls
   ([#8](https://github.com/vaadin-tokenfield/tokenfield/issues/8)).
-- Captions and icons no longer fail for a token whose id the bound container cannot hold
-  ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24)).
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.
 - Add-on JAR no longer carries an unresolvable `Class-Path` manifest entry.
