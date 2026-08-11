@@ -58,11 +58,10 @@ import com.vaadin.ui.Window;
  * <li>the raw address {@code String} the user typed, for one that is not.</li>
  * </ul>
  * <p>
- * The overrides below all exist to keep the second kind away from the
- * container. {@code TokenField} resolves a caption by asking the container
- * {@code containsId(tokenId)} first, and a {@code JPAContainer} asked whether
- * it contains {@code "new@example.com"} does not answer false — it fails
- * trying to convert that {@code String} to a {@code Long}:
+ * The overrides below all exist to handle the second kind. A
+ * {@code JPAContainer} asked whether it contains {@code "new@example.com"} does
+ * not answer false — it fails trying to convert that {@code String} to a
+ * {@code Long}:
  * </p>
  *
  * <pre>
@@ -72,10 +71,11 @@ import com.vaadin.ui.Window;
  * </pre>
  * <p>
  * That is <a href=
- * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. Until it
- * is fixed in the add-on, an application over a typed container has to resolve
- * such captions itself, which is what {@link #getTokenCaption(Object)} does
- * here.
+ * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. The
+ * add-on reads such a refusal as "no such item", so an off-book token resolves
+ * to an empty caption instead of propagating the exception. This panel builds
+ * its own {@code Name <email>} caption and so still needs text for those
+ * tokens, which is what {@link #getTokenCaption(Object)} supplies here.
  * </p>
  */
 public class JpaAddressBookPanel extends Panel {
