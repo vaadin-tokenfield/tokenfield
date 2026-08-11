@@ -86,6 +86,12 @@ class TokenFieldForeignTokenIdTest {
     }
 
     @Test
+    void containsIdDoesNotPropagateTheContainersRefusal() {
+        assertThat(field.getComboBox().containsId(FOREIGN)).isFalse();
+        assertThat(field.getComboBox().containsId(CONTAINED)).isTrue();
+    }
+
+    @Test
     void itemModeAlsoToleratesAForeignTokenId() {
         field.setTokenCaptionMode(ItemCaptionMode.ITEM);
         field.addToken(CONTAINED);
