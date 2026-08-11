@@ -820,13 +820,19 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         try {
             return cb.containsId(tokenId);
         } catch (RuntimeException e) {
-            // A container keyed by a type throws for an id it cannot convert
-            // instead of answering false - that refusal means "not contained".
-            Logger.getLogger(TokenField.class.getName()).log(Level.FINE, e,
-                    () -> "Container rejected the token id " + tokenId
-                            + "; treating it as not contained");
+            logRejectedToken(tokenId, e);
             return false;
         }
+    }
+
+    /**
+     * A container keyed by a type throws for an id it cannot convert instead of
+     * reporting it absent - that refusal means "not contained".
+     */
+    private static void logRejectedToken(Object tokenId, RuntimeException e) {
+        Logger.getLogger(TokenField.class.getName()).log(Level.FINE, e,
+                () -> "Container rejected the token id " + tokenId
+                        + "; treating it as not contained");
     }
 
     /**
@@ -849,10 +855,19 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @see ComboBox#getItemIcon(Object)
      * @param tokenId
      *            the id of the token
-     * @return the icon for the given token
+     * @return the icon for the given token, or {@code null} if there is none
      */
     public Resource getTokenIcon(Object tokenId) {
-        return cb.getItemIcon(tokenId);
+        try {
+            return cb.getItemIcon(tokenId);
+        } catch (RuntimeException e) {
+            // Reads the icon property off the container item, so a token the
+            // container cannot hold gets the same treatment as in
+            // getTokenCaption. Wrapped here rather than around the property
+            // lookup, which AbstractSelect performs internally.
+            logRejectedToken(tokenId, e);
+            return null;
+        }
     }
 
     /**
