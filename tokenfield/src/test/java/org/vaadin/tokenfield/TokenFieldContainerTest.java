@@ -42,7 +42,9 @@ class TokenFieldContainerTest {
 
     @Test
     void getTokenCaptionFallsBackToStringWhenIdAbsentFromContainer() {
-        // "ghost" was never added to the container
+        // "ghost" was never added to the container; in the default
+        // EXPLICIT_DEFAULTS_ID mode an id without an explicit caption is its own
+        // caption, container membership notwithstanding
         String caption = field.getTokenCaption("ghost");
         assertWithMessage("Caption must fall back to tokenId.toString() when id not in container")
                 .that(caption).isEqualTo("ghost");

@@ -15,8 +15,12 @@
  */
 package org.vaadin.tokenfield;
 
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import org.vaadin.tokenfield.client.ui.TokenFieldServerRpc;
 
+import com.vaadin.data.Property;
 import com.vaadin.server.PaintException;
 import com.vaadin.server.PaintTarget;
 import com.vaadin.ui.ComboBox;
@@ -45,6 +49,35 @@ public abstract class TokenComboBox extends ComboBox {
     public void setTokenInsertPosition(TokenField.InsertPosition insertPosition) {
         this.insertPosition = insertPosition;
         markAsDirty();
+    }
+
+    /*
+     * A select is normally only ever asked about ids that came out of its own
+     * container. A TokenField deliberately holds tokens the container does not
+     * contain, and resolving their icon asks anyway. A container keyed by a
+     * specific type answers such a question by throwing rather than by
+     * reporting the id as absent - a JPAContainer keyed by Long, asked about a
+     * String, fails converting it. The lookup below therefore reads "no such
+     * item" out of that refusal, which is what the caller means to ask.
+     * <p>
+     * Overridden rather than wrapped at the call site because AbstractSelect
+     * reaches it from inside getItemIcon, where TokenField cannot intercept.
+     */
+
+    @Override
+    public Property getContainerProperty(Object itemId, Object propertyId) {
+        try {
+            return super.getContainerProperty(itemId, propertyId);
+        } catch (RuntimeException e) {
+            logForeignId(itemId, e);
+            return null;
+        }
+    }
+
+    private static void logForeignId(Object itemId, RuntimeException e) {
+        Logger.getLogger(TokenComboBox.class.getName()).log(Level.FINE,
+                e, () -> "Container rejected the token id " + itemId
+                        + "; treating it as not contained");
     }
 
     protected abstract void onDelete();
