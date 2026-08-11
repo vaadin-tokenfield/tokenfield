@@ -297,21 +297,18 @@ class TokenFieldCaptionDerivationTest {
     }
 
     @Test
-    void refreshTokensPicksUpChangesWithinTheContainer() {
-        IndexedContainer c = container();
+    void refreshTokensPicksUpChangesTheFieldCannotObserve() {
         TestTokenField field = new TestTokenField();
-        field.setTokenCaptionPropertyId("name");
-        field.setContainerDataSource(c);
         field.addToken(IN);
 
-        // Changing a value inside the container is not something the field
-        // reconfigures on, so the button keeps the caption it was given
-        c.getItem(IN).getItemProperty("name").setValue("Renamed");
-        assertThat(caption(field, IN)).isEqualTo("Alpha");
+        // Bypasses TokenField's own setter, so nothing invalidated the button,
+        // and an explicit caption is not a container property either
+        field.getComboBox().setItemCaption(IN, "Alpha");
+        assertThat(caption(field, IN)).isEqualTo(IN);
 
         field.refreshTokens();
 
-        assertThat(caption(field, IN)).isEqualTo("Renamed");
+        assertThat(caption(field, IN)).isEqualTo("Alpha");
     }
 
     // ------------------------------------------------------------------

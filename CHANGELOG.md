@@ -17,14 +17,19 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - **Breaking:** `getTokenCaption(Object)` now follows the caption mode for every token, instead of
   forcing the raw tokenId for tokens the container does not hold.
 - **Breaking:** `configureTokenButton(Object, Button)` is called again whenever the field is
-  reconfigured, so overrides must be idempotent.
+  reconfigured or the data it derives from changes, so overrides must be idempotent.
 - In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
   itself instead of being left blank — a documented deviation from `AbstractSelect`.
 
 ### Added
 
+- Token buttons follow changes made within the bound container: an item appearing or disappearing,
+  the value of a caption or icon property changing, and the container's property set changing
+  ([#33](https://github.com/vaadin-tokenfield/tokenfield/issues/33)).
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
+- `TokenField.containsToken(Object)` as the single overridable place where the component asks
+  whether the container holds a token.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.

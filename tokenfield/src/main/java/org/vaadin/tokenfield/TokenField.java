@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
@@ -89,9 +90,11 @@ import com.vaadin.ui.themes.Reindeer;
  * configuration - the {@link ItemCaptionMode}, the explicit captions and icons,
  * and the container - as {@link AbstractSelect} derives them for its options
  * (see {@link #getTokenCaption(Object)} for the one deviation, which concerns
- * tokens outside the container). They are re-derived whenever the field is
- * reconfigured, so the order in which that happens does not affect the result.
- * Changes <i>within</i> the container are not observed - pick those up with
+ * tokens outside the container). They are re-derived whenever any of those
+ * change, so the order in which the field is configured does not affect the
+ * result, and changes made <i>within</i> the container are followed as well -
+ * an item appearing, a caption or icon property changing its value. Data that
+ * announces itself through none of those can be picked up with
  * {@link #refreshTokens()}.
  * </p>
  *
@@ -171,6 +174,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     protected LinkedHashMap<Object, Button> buttons = new LinkedHashMap<>();
 
     protected boolean rememberNewTokens = true;
+
+    /**
+     * Keeps the token buttons in sync with the data they are derived from.
+     */
+    private final TokenDataChangeListener tokenDataListener = new TokenDataChangeListener();
 
     /**
      * Create a new TokenField with a caption and a {@link InsertPosition}.
@@ -296,6 +304,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
         });
 
+        // The embedded select re-fires the events of whatever container is
+        // currently bound to it, so listening here survives container swaps.
+        cb.addItemSetChangeListener(tokenDataListener);
+        cb.addPropertySetChangeListener(tokenDataListener);
+
         setLayout(lo);
 
     }
@@ -361,22 +374,47 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         for (Object tokenId : add) {
             addTokenButton(tokenId);
         }
+
+        // The buttons themselves were just configured; only the set of items
+        // whose caption and icon properties are tracked has changed.
+        bindTokenDataNotifiers();
     }
 
     /**
      * Re-derives every token button from the current data.
      * <p>
      * The component does this by itself whenever the container, the caption
-     * mode, or an explicit caption or icon changes. Call this after changing
-     * data the component cannot observe - for instance the value of a caption
-     * property in the container.
+     * mode, an explicit caption or icon, or a tracked container property
+     * changes. Call this after changing data the component cannot observe -
+     * for instance a caption held in a container whose properties do not fire
+     * value change events.
      * </p>
      *
      * @see com.vaadin.ui.Table#refreshRowCache()
      */
     public void refreshTokens() {
+        bindTokenDataNotifiers();
+        refreshTokenButtons();
+    }
+
+    /**
+     * Re-runs {@link #configureTokenButton(Object, Button)} for every current
+     * token, leaving the button instances and their position in place.
+     */
+    private void refreshTokenButtons() {
         for (Map.Entry<Object, Button> token : buttons.entrySet()) {
             configureTokenButton(token.getKey(), token.getValue());
+        }
+    }
+
+    /**
+     * Re-attaches the caption and icon property listeners to the current set of
+     * tokens.
+     */
+    private void bindTokenDataNotifiers() {
+        tokenDataListener.clearNotifiers();
+        for (Object tokenId : buttons.keySet()) {
+            tokenDataListener.addNotifiersForToken(tokenId);
         }
     }
 
@@ -784,10 +822,32 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     public String getTokenCaption(Object tokenId) {
         ItemCaptionMode mode = getTokenCaptionMode();
         if ((mode == ItemCaptionMode.ITEM || mode == ItemCaptionMode.PROPERTY)
-                && !cb.containsId(tokenId)) {
+                && !containsToken(tokenId)) {
             return String.valueOf(tokenId);
         }
         return cb.getItemCaption(tokenId);
+    }
+
+    /**
+     * Whether the bound container holds an item for this token; {@code false}
+     * says the token stands on its own, which is a supported case here.
+     * <p>
+     * This is the single place the component asks that question - the caption
+     * modes that read the container go through it, and so does the tracking of
+     * a token's caption and icon properties. The default asks the container
+     * directly. A container keyed by a specific type answers an id it cannot
+     * hold by throwing rather than by reporting it absent (<a href=
+     * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>);
+     * until that is handled in the add-on, an application over such a container
+     * overrides this to answer for those ids itself.
+     * </p>
+     *
+     * @param tokenId
+     *            the id of the token
+     * @return whether the container holds an item under this id
+     */
+    protected boolean containsToken(Object tokenId) {
+        return cb.containsId(tokenId);
     }
 
     /**
@@ -992,6 +1052,117 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     @Override
     protected Component initContent() {
         return layout;
+    }
+
+    /**
+     * Keeps the token buttons in sync with the data they are derived from.
+     * <p>
+     * The container's own item set and property set changes are picked up
+     * through the embedded select, which re-fires them. Changes to the value of
+     * an individual caption or icon property are not covered by those, so this
+     * also attaches itself to the tracked properties of every current token -
+     * the same job {@code AbstractSelect.CaptionChangeListener} does for the
+     * options a select paints.
+     * </p>
+     */
+    private class TokenDataChangeListener implements
+            Container.ItemSetChangeListener,
+            Container.PropertySetChangeListener,
+            Item.PropertySetChangeListener, Property.ValueChangeListener {
+
+        private static final long serialVersionUID = 7574583734757830902L;
+
+        /** Notifiers this listener is currently attached to. */
+        private final Set<Object> notifiers = new HashSet<>();
+
+        @Override
+        public void containerItemSetChange(Container.ItemSetChangeEvent event) {
+            // Items appearing or disappearing changes what a token resolves to,
+            // and which properties are there to be tracked.
+            refreshTokens();
+        }
+
+        @Override
+        public void containerPropertySetChange(
+                Container.PropertySetChangeEvent event) {
+            refreshTokens();
+        }
+
+        @Override
+        public void itemPropertySetChange(Item.PropertySetChangeEvent event) {
+            refreshTokens();
+        }
+
+        @Override
+        public void valueChange(Property.ValueChangeEvent event) {
+            // Only the rendered value changed, the set of tracked properties
+            // did not - so re-binding would be wasted work here.
+            refreshTokenButtons();
+        }
+
+        void addNotifiersForToken(Object tokenId) {
+            if (!containsToken(tokenId)) {
+                // A token that stands on its own has nothing to track.
+                return;
+            }
+            switch (getTokenCaptionMode()) {
+            case ITEM:
+                addItemNotifiers(cb.getItem(tokenId));
+                break;
+            case PROPERTY:
+                if (getTokenCaptionPropertyId() != null) {
+                    addPropertyNotifier(cb.getContainerProperty(tokenId,
+                            getTokenCaptionPropertyId()));
+                }
+                break;
+            default:
+                break;
+            }
+            if (getTokenIconPropertyId() != null) {
+                addPropertyNotifier(cb.getContainerProperty(tokenId,
+                        getTokenIconPropertyId()));
+            }
+        }
+
+        void clearNotifiers() {
+            for (Object notifier : notifiers) {
+                if (notifier instanceof Item.PropertySetChangeNotifier) {
+                    ((Item.PropertySetChangeNotifier) notifier)
+                            .removePropertySetChangeListener(this);
+                } else {
+                    ((Property.ValueChangeNotifier) notifier)
+                            .removeValueChangeListener(this);
+                }
+            }
+            notifiers.clear();
+        }
+
+        private void addItemNotifiers(Item item) {
+            if (item == null) {
+                return;
+            }
+            // In ITEM mode the caption is the Item's own string representation,
+            // so any of its properties can change it.
+            if (item instanceof Item.PropertySetChangeNotifier) {
+                ((Item.PropertySetChangeNotifier) item)
+                        .addPropertySetChangeListener(this);
+                notifiers.add(item);
+            }
+            Collection<?> propertyIds = item.getItemPropertyIds();
+            if (propertyIds != null) {
+                for (Object propertyId : propertyIds) {
+                    addPropertyNotifier(item.getItemProperty(propertyId));
+                }
+            }
+        }
+
+        private void addPropertyNotifier(Property<?> property) {
+            if (property instanceof Property.ValueChangeNotifier) {
+                ((Property.ValueChangeNotifier) property)
+                        .addValueChangeListener(this);
+                notifiers.add(property);
+            }
+        }
     }
 
 }
