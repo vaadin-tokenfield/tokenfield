@@ -73,9 +73,10 @@ import com.vaadin.ui.Window;
  * <p>
  * That is <a href=
  * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. Until it
- * is fixed in the add-on, an application over a typed container has to resolve
- * such captions itself, which is what {@link #getTokenCaption(Object)} does
- * here.
+ * is fixed in the add-on, an application over a typed container has to answer
+ * that question itself, which is what the {@code containsToken} override does
+ * here — for the caption and for the property tracking alike, since both go
+ * through it.
  * </p>
  */
 public class JpaAddressBookPanel extends Panel {
@@ -123,7 +124,7 @@ public class JpaAddressBookPanel extends Panel {
 
     /**
      * The field itself, with the same four overrides the BeanItemContainer
-     * panel uses plus {@link #getTokenCaption(Object)}.
+     * panel uses plus {@code containsToken}.
      */
     private static class JpaAddressBookField extends TokenField {
 
@@ -200,17 +201,15 @@ public class JpaAddressBookPanel extends Panel {
         }
 
         /**
-         * Resolves the caption without asking the container about an id it
-         * cannot hold — see the class comment and #24. A contact's caption
-         * comes from the container as usual; an off-book token is its own
-         * address.
+         * Answers for the ids the container cannot be asked about, instead of
+         * letting it throw — see the class comment and #24. A contact is
+         * looked up as usual; an off-book token is simply not in the book, so
+         * its caption falls back to the address itself and it has no container
+         * properties to track.
          */
         @Override
-        public String getTokenCaption(Object tokenId) {
-            if (isContact(tokenId)) {
-                return super.getTokenCaption(tokenId);
-            }
-            return String.valueOf(tokenId);
+        protected boolean containsToken(Object tokenId) {
+            return isContact(tokenId) && super.containsToken(tokenId);
         }
 
         /** custom caption + style if not in 'address book' */
