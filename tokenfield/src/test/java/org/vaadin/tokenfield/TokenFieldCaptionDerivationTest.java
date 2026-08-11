@@ -141,7 +141,11 @@ class TokenFieldCaptionDerivationTest {
      * {@code INDEX} answering {@code -1} outside the container is
      * {@link IndexedContainer#indexOfId(Object)} speaking, exactly as it does
      * for a Vaadin select; that mode is only meaningful for contained tokens.
-     * {@code ITEM} is covered separately - its caption is an Item's toString.
+     * <p>
+     * {@code ITEM} reads the Item's own toString rather than the {@code name}
+     * property, which for this single-property fixture is the same string that
+     * {@code PROPERTY} produces; {@link #theItemCaptionIsTheItemsOwnToString()}
+     * pins that the literal below is the one and not the other.
      */
     @ParameterizedTest
     @CsvSource({
@@ -152,6 +156,7 @@ class TokenFieldCaptionDerivationTest {
             "EXPLICIT_DEFAULTS_ID,id-a,       id-x, Explicit A, Explicit X",
             "EXPLICIT,            '',         '',   Explicit A, Explicit X",
             "ICON_ONLY,           '',         '',   '',         ''",
+            "ITEM,                Alpha,      id-x, Alpha,      id-x",
             "PROPERTY,            Alpha,      id-x, Alpha,      id-x",
     })
     void captionPerMode(ItemCaptionMode mode, String in, String out,
@@ -176,20 +181,21 @@ class TokenFieldCaptionDerivationTest {
                 .that(caption(field, tokenId)).isEqualTo(expected);
     }
 
-    /** ITEM, which the tables above cannot express: the caption is an Item. */
-    @ParameterizedTest
-    @ValueSource(booleans = { false, true })
-    void itemModeUsesTheItemForContainedTokensAndFallsBackForTheRest(
-            boolean withExplicitCaptions) {
+    /**
+     * What the table's ITEM row spells as a literal: the caption is the Item's
+     * own toString, which happens to read like the {@code name} property only
+     * because the fixture item has that one property. Give {@link #container()}
+     * a second property and this is what says why the row has to change.
+     */
+    @Test
+    void theItemCaptionIsTheItemsOwnToString() {
         IndexedContainer c = container();
         TestTokenField field = new TestTokenField();
-        configure(field, ItemCaptionMode.ITEM, c, withExplicitCaptions);
+        configure(field, ItemCaptionMode.ITEM, c, false);
         addTokens(field);
 
-        assertWithMessage("ITEM renders the Item, explicit captions are ignored")
+        assertWithMessage("ITEM renders the Item itself, not a property of it")
                 .that(caption(field, IN)).isEqualTo(c.getItem(IN).toString());
-        assertWithMessage("No Item to render, so the tokenId carries the token")
-                .that(caption(field, OUT)).isEqualTo(OUT);
     }
 
     // ------------------------------------------------------------------
