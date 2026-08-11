@@ -301,7 +301,12 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
+        // The token is added under its own id, not under its caption: the
+        // caption property below is looked up by tokenId, so the two have to
+        // agree. This used to read getTokenCaption(tokenId), which returned the
+        // id string only because the token was by definition not yet in the
+        // container.
+        if (cb.addItem(tokenId) != null) {
             // Sets the caption property, if used
             if (getTokenCaptionPropertyId() != null) {
                 cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
@@ -371,7 +376,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @see com.vaadin.ui.Table#refreshRowCache()
      */
     public void refreshTokens() {
-        for (Map.Entry<Object, Button> token : buttons.entrySet()) {
+        // Iterated over a copy: a configureTokenButton override that removes a
+        // token would otherwise mutate the map being iterated.
+        for (Map.Entry<Object, Button> token : new LinkedHashMap<>(buttons).entrySet()) {
             configureTokenButton(token.getKey(), token.getValue());
         }
     }

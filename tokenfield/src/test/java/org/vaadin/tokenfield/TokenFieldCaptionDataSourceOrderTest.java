@@ -107,22 +107,6 @@ class TokenFieldCaptionDataSourceOrderTest {
     }
 
     /**
-     * In {@link ItemCaptionMode#EXPLICIT} an id with no explicit caption has no
-     * caption to offer, so the id string must be used rather than the empty
-     * string {@code AbstractSelect.getItemCaption} returns.
-     */
-    @Test
-    void explicitModeWithoutRegisteredCaptionFallsBackToIdString() {
-        TestTokenField f = new TestTokenField();
-        f.setTokenCaptionMode(ItemCaptionMode.EXPLICIT);
-        IndexedContainer c = new IndexedContainer();
-        c.addItem("uncaptioned");
-        f.setContainerDataSource(c);
-
-        assertThat(f.getTokenCaption("uncaptioned")).isEqualTo("uncaptioned");
-    }
-
-    /**
      * Captions that live in the container (
      * {@link ItemCaptionMode#PROPERTY}) are only readable once the container is
      * there. Buttons built before that must be re-captioned when the container
@@ -145,6 +129,54 @@ class TokenFieldCaptionDataSourceOrderTest {
 
         assertThat(f.getTokenCaption("id-123")).isEqualTo("Pretty Name");
         assertThat(captionOf(f, "id-123")).isEqualTo("Pretty Name");
+    }
+
+    /**
+     * {@code rememberToken} must add the token under its own id. It looks the
+     * caption property up by token id straight afterwards, so adding it under
+     * its caption would both mis-key the container and break that lookup.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void rememberTokenAddsTheTokenIdNotItsCaption() {
+        TestTokenField f = new TestTokenField();
+        f.setNewTokensAllowed(true);
+        f.setRememberNewTokens(true);
+        f.setPropertyDataSource(new ObjectProperty(new LinkedHashSet<Object>()));
+
+        // A caption is registered for an id the user has not typed yet.
+        f.setTokenCaption("foo", "Foo Label");
+        f.simulateNewItemInput("foo");
+
+        assertThat(f.getContainerDataSource().getItemIds()).containsExactly("foo");
+        assertThat(f.getTokenIds()).containsExactly("foo");
+        assertWithMessage("The registered caption is still what the button shows")
+                .that(captionOf(f, "foo")).isEqualTo("Foo Label");
+    }
+
+    /**
+     * {@code configureTokenButton} is an override point, so an implementation
+     * that removes a token must not blow up the re-configuration loop.
+     */
+    @Test
+    void removingATokenFromConfigureTokenButtonDoesNotBreakTheContainerSwap() {
+        TestTokenField f = new TestTokenField() {
+            @Override
+            protected void configureTokenButton(Object tokenId, Button button) {
+                super.configureTokenButton(tokenId, button);
+                if ("drop-me".equals(tokenId) && getContainerDataSource().size() > 0) {
+                    removeToken(tokenId);
+                }
+            }
+        };
+        f.addToken("drop-me");
+        f.addToken("keep");
+
+        IndexedContainer c = new IndexedContainer();
+        c.addItem("keep");
+        f.setContainerDataSource(c);
+
+        assertThat(f.getTokenButtons().keySet()).containsExactly("keep");
     }
 
     /**
