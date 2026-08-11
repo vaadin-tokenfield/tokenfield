@@ -72,10 +72,9 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   re-deriving on every paint.
 - A container that answers a lookup for a token id it cannot hold by throwing rather than by
   reporting it absent — a `JPAContainer` keyed by `Long` asked about a `String`, for instance — no
-  longer propagates that exception; `containsId`, `getItem` and `getContainerProperty` on the
-  embedded select read the refusal as "no such item"
-  ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24)). Applications over a typed
-  container no longer need to resolve such captions themselves.
+  longer propagates that exception out of caption and icon resolution; the refusal is read as "no
+  such item" ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24)). Applications over
+  a typed container no longer need to resolve such captions themselves.
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.
 - Add-on JAR no longer carries an unresolvable `Class-Path` manifest entry.

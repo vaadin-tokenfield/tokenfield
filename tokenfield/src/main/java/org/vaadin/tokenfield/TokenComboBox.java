@@ -58,19 +58,13 @@ public abstract class TokenComboBox extends ComboBox {
      * contain, and resolving their caption and icon asks anyway. A container
      * keyed by a specific type answers such a question by throwing rather than
      * by reporting the id as absent - a JPAContainer keyed by Long, asked about
-     * a String, fails converting it. All three lookups below therefore read "no
-     * such item" out of that refusal, which is what the caller means to ask.
+     * a String, fails converting it. Both lookups below therefore read "no such
+     * item" out of that refusal, which is what the caller means to ask.
+     * <p>
+     * These two are overridden rather than wrapped at the call site because
+     * AbstractSelect reaches them from inside getItemCaption and getItemIcon,
+     * where TokenField cannot intercept.
      */
-
-    @Override
-    public boolean containsId(Object itemId) {
-        try {
-            return super.containsId(itemId);
-        } catch (RuntimeException e) {
-            logForeignId(itemId, e);
-            return false;
-        }
-    }
 
     @Override
     public Item getItem(Object itemId) {

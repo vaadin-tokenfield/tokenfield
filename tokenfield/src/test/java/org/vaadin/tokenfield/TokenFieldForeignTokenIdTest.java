@@ -86,9 +86,10 @@ class TokenFieldForeignTokenIdTest {
     }
 
     @Test
-    void containsIdDoesNotPropagateTheContainersRefusal() {
-        assertThat(field.getComboBox().containsId(FOREIGN)).isFalse();
-        assertThat(field.getComboBox().containsId(CONTAINED)).isTrue();
+    void aContainedTokenIsStillRecognisedAsContained() {
+        // The membership check reads a refusal as "not contained", so it must
+        // not turn every token into an outsider
+        assertThat(field.getTokenCaption(CONTAINED)).isEqualTo("Alpha");
     }
 
     @Test
