@@ -300,14 +300,90 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
+    /**
+     * Puts a token the user typed into the container, so that it is there to be
+     * suggested the next time.
+     * <p>
+     * The text the user typed becomes the id of the new item where the
+     * container accepts one, and the value of the
+     * {@link #setTokenCaptionPropertyId(Object) token caption property} in
+     * either case - so the item reads back as it was entered. Which of the two
+     * {@link #addTokenToContainer(String) add paths} was taken is up to the
+     * container.
+     * </p>
+     * <p>
+     * Two limits are worth knowing about, both concerning a container that
+     * assigns its own ids:
+     * </p>
+     * <ul>
+     * <li>The token keeps the typed text as its id and therefore does not point
+     * at the item that was just created. The token is already part of the value
+     * at this point, and re-pointing it would change an id that
+     * {@link #onTokenInput(Object)} has already been handed.</li>
+     * <li>The same text typed twice adds a second item. Whether an item for it
+     * exists cannot be answered by its id, and this does not go looking;
+     * override to do so.</li>
+     * </ul>
+     * <p>
+     * If no token caption property id is set, an item created under a generated
+     * id carries no trace of the typed text.
+     * </p>
+     *
+     * @param tokenId
+     *            the text the user typed
+     */
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
+        Object itemId = addTokenToContainer(tokenId);
+        if (itemId != null) {
+            setTokenCaptionProperty(itemId, tokenId);
+        }
+    }
 
-            }
+    /**
+     * Adds an item for a token the user typed to the container.
+     * <p>
+     * Both ways of creating an item are optional parts of the {@link Container}
+     * contract, and a container may well support only one of them - a
+     * {@code JPAContainer} throws for {@link Container#addItem(Object)} and
+     * assigns entity ids of its own through {@link Container#addItem()}. There
+     * is no way to ask a container in advance which one it implements; the
+     * {@link UnsupportedOperationException} is the answer, so both are tried in
+     * turn.
+     * </p>
+     *
+     * @param tokenId
+     *            the text the user typed, used as the item id where the
+     *            container accepts one
+     * @return the id the new item was created under - the typed text, or an id
+     *         the container assigned - or {@code null} if no item was created,
+     *         which includes the container already holding one for this id
+     * @throws UnsupportedOperationException
+     *             if the container supports neither way of adding an item, in
+     *             which case there is nothing to remember and
+     *             {@link #setRememberNewTokens(boolean)} should be off
+     */
+    protected Object addTokenToContainer(String tokenId) {
+        try {
+            return cb.addItem(tokenId) == null ? null : tokenId;
+        } catch (UnsupportedOperationException e) {
+            return cb.addItem();
+        }
+    }
+
+    /**
+     * Writes the text the user typed into the caption property of the item that
+     * was created for it, if a caption property is in use and the item has one.
+     */
+    private void setTokenCaptionProperty(Object itemId, String text) {
+        Object captionPropertyId = getTokenCaptionPropertyId();
+        if (captionPropertyId == null) {
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        Property<Object> caption = cb.getContainerProperty(itemId,
+                captionPropertyId);
+        if (caption != null) {
+            caption.setValue(text);
         }
     }
 

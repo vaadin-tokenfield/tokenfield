@@ -20,11 +20,19 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   reconfigured, so overrides must be idempotent.
 - In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
   itself instead of being left blank — a documented deviation from `AbstractSelect`.
+- **Breaking:** `rememberToken(String)` adds the new item under the typed text as its id rather
+  than under its caption, which is also the id the caption property is written under. It no longer
+  throws when the two differ.
 
 ### Added
 
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
+- New tokens can be remembered in a container that assigns its own item ids, such as a
+  `JPAContainer`: `rememberToken(String)` falls back to `Container.addItem()` when the container
+  rejects an explicit id, and puts the typed text in the token caption property.
+- `TokenField.addTokenToContainer(String)` as the overridable place where a typed token becomes a
+  container item.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
