@@ -129,11 +129,14 @@ class TokenFieldCaptionDerivationTest {
     }
 
     /**
-     * What {@link TokenField#getTokenCaption(Object)} answers, per mode, for a
-     * token the container holds and one it does not, with and without an
-     * explicit caption. Only {@code EXPLICIT} and {@code EXPLICIT_DEFAULTS_ID}
-     * read explicit captions at all; the other modes ignore them, which is
-     * {@code AbstractSelect}'s switch and not a TokenField decision.
+     * The full mode table, per mode, for a token the container holds and one it
+     * does not, with and without an explicit caption. Only {@code EXPLICIT} and
+     * {@code EXPLICIT_DEFAULTS_ID} read explicit captions at all; the other
+     * modes ignore them, which is {@code AbstractSelect}'s switch and not a
+     * TokenField decision.
+     * <p>
+     * The button shows exactly what {@code getTokenCaption} answers, empty
+     * captions included - both are asserted against the same expectation.
      * <p>
      * {@code INDEX} answering {@code -1} outside the container is
      * {@link IndexedContainer#indexOfId(Object)} speaking, exactly as it does
@@ -151,50 +154,26 @@ class TokenFieldCaptionDerivationTest {
             "ICON_ONLY,           '',         '',   '',         ''",
             "PROPERTY,            Alpha,      id-x, Alpha,      id-x",
     })
-    void tokenCaptionPerMode(ItemCaptionMode mode, String in, String out,
+    void captionPerMode(ItemCaptionMode mode, String in, String out,
             String inWithCaption, String outWithCaption) {
         TestTokenField plain = field(mode, false);
-        assertWithMessage("contained token, " + mode)
-                .that(plain.getTokenCaption(IN)).isEqualTo(in);
-        assertWithMessage("token outside the container, " + mode)
-                .that(plain.getTokenCaption(OUT)).isEqualTo(out);
+        assertCaption("contained token, " + mode, plain, IN, in);
+        assertCaption("token outside the container, " + mode, plain, OUT, out);
 
         TestTokenField captioned = field(mode, true);
-        assertWithMessage("contained token with explicit caption, " + mode)
-                .that(captioned.getTokenCaption(IN)).isEqualTo(inWithCaption);
-        assertWithMessage("outside token with explicit caption, " + mode)
-                .that(captioned.getTokenCaption(OUT))
-                .isEqualTo(outWithCaption);
+        assertCaption("contained token with explicit caption, " + mode,
+                captioned, IN, inWithCaption);
+        assertCaption("outside token with explicit caption, " + mode,
+                captioned, OUT, outWithCaption);
     }
 
-    /**
-     * The same matrix at the button, where the empty-caption fallback applies -
-     * no token may render nameless.
-     */
-    @ParameterizedTest
-    @CsvSource({
-            // mode,              in,         out,  in+caption, out+caption
-            "ID,                  id-a,       id-x, id-a,       id-x",
-            "ID_TOSTRING,         id-a,       id-x, id-a,       id-x",
-            "INDEX,               0,          -1,   0,          -1",
-            "EXPLICIT_DEFAULTS_ID,id-a,       id-x, Explicit A, Explicit X",
-            "EXPLICIT,            id-a,       id-x, Explicit A, Explicit X",
-            "ICON_ONLY,           id-a,       id-x, id-a,       id-x",
-            "PROPERTY,            Alpha,      id-x, Alpha,      id-x",
-    })
-    void buttonCaptionPerMode(ItemCaptionMode mode, String in, String out,
-            String inWithCaption, String outWithCaption) {
-        TestTokenField plain = field(mode, false);
-        assertWithMessage("contained token, " + mode)
-                .that(caption(plain, IN)).isEqualTo(in);
-        assertWithMessage("token outside the container, " + mode)
-                .that(caption(plain, OUT)).isEqualTo(out);
-
-        TestTokenField captioned = field(mode, true);
-        assertWithMessage("contained token with explicit caption, " + mode)
-                .that(caption(captioned, IN)).isEqualTo(inWithCaption);
-        assertWithMessage("outside token with explicit caption, " + mode)
-                .that(caption(captioned, OUT)).isEqualTo(outWithCaption);
+    /** Asserts the caption and the button that renders it agree on it. */
+    private static void assertCaption(String message, TestTokenField field,
+            Object tokenId, String expected) {
+        assertWithMessage(message).that(field.getTokenCaption(tokenId))
+                .isEqualTo(expected);
+        assertWithMessage(message + ", at the button")
+                .that(caption(field, tokenId)).isEqualTo(expected);
     }
 
     /** ITEM, which the tables above cannot express: the caption is an Item. */
@@ -214,7 +193,7 @@ class TokenFieldCaptionDerivationTest {
     }
 
     // ------------------------------------------------------------------
-    // The empty-caption fallback
+    // The one deviation, and its boundary
     // ------------------------------------------------------------------
 
     /**
@@ -249,11 +228,11 @@ class TokenFieldCaptionDerivationTest {
         field.setTokenCaptionPropertyId("name");
         field.addToken(IN);
 
-        assertWithMessage("The fallback is about absence from the container,"
+        assertWithMessage("The stand-in is about absence from the container,"
                 + " not about an empty property value")
                 .that(field.getTokenCaption(IN)).isEmpty();
-        assertWithMessage("The button still needs something to show")
-                .that(caption(field, IN)).isEqualTo(IN);
+        assertWithMessage("An empty caption is rendered as it stands")
+                .that(caption(field, IN)).isEmpty();
     }
 
     @Test
@@ -263,30 +242,29 @@ class TokenFieldCaptionDerivationTest {
         field.setTokenIcon(OUT, new ThemeResource("icons/token.png"));
         field.addToken(OUT);
 
-        assertWithMessage("PROPERTY now yields a caption, so the icon-only"
-                + " shortcut in getTokenButtonCaption does not apply")
+        assertWithMessage("An icon does not suppress the stand-in caption")
                 .that(caption(field, OUT)).isEqualTo(OUT);
     }
 
-    @Test
-    void anIconCarriesTheTokenSoTheCaptionStaysEmpty() {
+    /**
+     * An empty caption is the mode speaking, not a gap to be filled: ICON_ONLY
+     * renders the icon alone, with or without one to show.
+     */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void iconOnlyRendersNoCaption(boolean withIcon) {
+        ThemeResource icon = new ThemeResource("icons/token.png");
         TestTokenField field = new TestTokenField();
         field.setTokenCaptionMode(ItemCaptionMode.ICON_ONLY);
-        field.setTokenIcon(OUT, new ThemeResource("icons/token.png"));
+        if (withIcon) {
+            field.setTokenIcon(OUT, icon);
+        }
         field.addToken(OUT);
 
-        assertWithMessage("ICON_ONLY must not be overridden by the fallback")
+        assertWithMessage("ICON_ONLY defines the caption as empty")
                 .that(caption(field, OUT)).isEmpty();
-    }
-
-    @Test
-    void withoutCaptionOrIconTheTokenIdIsShown() {
-        TestTokenField field = new TestTokenField();
-        field.setTokenCaptionMode(ItemCaptionMode.ICON_ONLY);
-        field.addToken(OUT);
-
-        assertWithMessage("A token must never render as an anonymous chip")
-                .that(caption(field, OUT)).isEqualTo(OUT);
+        assertThat(field.getTokenButtons().get(OUT).getIcon())
+                .isEqualTo(withIcon ? icon : null);
     }
 
     // ------------------------------------------------------------------
@@ -363,7 +341,7 @@ class TokenFieldCaptionDerivationTest {
             @Override
             protected void configureTokenButton(Object tokenId, Button button) {
                 super.configureTokenButton(tokenId, button);
-                button.setCaption("[" + getTokenButtonCaption(tokenId) + "]");
+                button.setCaption("[" + getTokenCaption(tokenId) + "]");
             }
         }
 

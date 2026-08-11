@@ -560,35 +560,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the button to be configured
      */
     protected void configureTokenButton(Object tokenId, Button button) {
-        button.setCaption(getTokenButtonCaption(tokenId) + " ×");
+        button.setCaption(getTokenCaption(tokenId) + " ×");
         button.setIcon(getTokenIcon(tokenId));
         button.setDescription("Click to remove");
         button.setStyleName(Reindeer.BUTTON_LINK);
-    }
-
-    /**
-     * Resolves the text a token button displays for the given token.
-     * <p>
-     * This is {@link #getTokenCaption(Object)}, which may legitimately be empty
-     * - under {@link ItemCaptionMode#ICON_ONLY}, or under
-     * {@link ItemCaptionMode#EXPLICIT} for a token that has no explicit
-     * caption. A token button is not an option in a dropdown but the only
-     * handle the user has on the token, so an empty caption falls back to the
-     * string representation of the tokenId, unless an icon was resolved and can
-     * carry the token on its own.
-     * </p>
-     *
-     * @param tokenId
-     *            the id of the token
-     * @return the text to display, never {@code null}
-     */
-    protected String getTokenButtonCaption(Object tokenId) {
-        String caption = getTokenCaption(tokenId);
-        if ((caption == null || caption.isEmpty())
-                && getTokenIcon(tokenId) == null) {
-            return String.valueOf(tokenId);
-        }
-        return caption == null ? "" : caption;
     }
 
     /**
@@ -792,9 +767,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * </p>
      * <p>
      * The result otherwise follows the {@link ItemCaptionMode} and may be empty
-     * when the mode resolves to nothing - under {@link ItemCaptionMode#EXPLICIT}
-     * or {@link ItemCaptionMode#ICON_ONLY}. What a token <i>button</i> displays
-     * in that case is decided by {@link #getTokenButtonCaption(Object)}.
+     * where the mode says so - under {@link ItemCaptionMode#ICON_ONLY}, under
+     * {@link ItemCaptionMode#EXPLICIT} for a token without an explicit caption,
+     * or for a container item whose caption property has no value. A token
+     * button renders that empty caption as it stands, the same as a select
+     * renders such an option.
      * </p>
      *
      * @see AbstractSelect#getItemCaption(Object)

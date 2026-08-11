@@ -26,8 +26,6 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
-- `TokenField.getTokenButtonCaption(Object)`, the caption a token button displays, with a
-  documented fallback so that no token is rendered nameless.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
