@@ -14,9 +14,17 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   cannot update the original "TokenField" listing.
 - Rebuilt on Vaadin 7.7.17 and Java 8.
 - Optimize `InsertPosition.BEFORE` token inserts on known layouts to avoid full repaints of the input.
+- **Breaking:** `getTokenCaption(Object)` now follows the caption mode for every token, instead of
+  forcing the raw tokenId for tokens the container does not hold.
+- **Breaking:** `configureTokenButton(Object, Button)` is called again whenever the field is
+  reconfigured, so overrides must be idempotent.
+- In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
+  itself instead of being left blank — a documented deviation from `AbstractSelect`.
 
 ### Added
 
+- `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
+  cannot see by itself.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
@@ -33,6 +41,8 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 
 ### Fixed
 
+- Token captions and icons no longer depend on the order of the initialisation calls
+  ([#8](https://github.com/vaadin-tokenfield/tokenfield/issues/8)).
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.
 - Add-on JAR no longer carries an unresolvable `Class-Path` manifest entry.

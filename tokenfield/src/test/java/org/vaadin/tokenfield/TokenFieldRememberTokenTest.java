@@ -12,7 +12,7 @@ import static com.google.common.truth.Truth.assertThat;
  * intentionally out of scope here: {@code rememberToken} adds the new item
  * under its <em>caption</em> but writes the caption property under the
  * original <em>id</em>, which throws when caption and id diverge — see
- * {@code TokenField.java:290-300}.
+ * {@code TokenField#rememberToken(String)}.
  */
 class TokenFieldRememberTokenTest {
 
