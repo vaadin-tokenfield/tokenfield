@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -53,12 +54,19 @@ class TokenFieldCaptionDerivationTest {
 
     /** Applies the caption configuration; the mode is set last so it wins. */
     private static void configure(TestTokenField field, ItemCaptionMode mode,
-            IndexedContainer c) {
+            IndexedContainer c, boolean withExplicitCaptions) {
         field.setContainerDataSource(c);
         field.setTokenCaptionPropertyId("name");
         field.setTokenCaptionMode(mode);
-        field.setTokenCaption(IN, "Explicit A");
-        field.setTokenCaption(OUT, "Explicit X");
+        if (withExplicitCaptions) {
+            field.setTokenCaption(IN, "Explicit A");
+            field.setTokenCaption(OUT, "Explicit X");
+        }
+    }
+
+    private static void configure(TestTokenField field, ItemCaptionMode mode,
+            IndexedContainer c) {
+        configure(field, mode, c, true);
     }
 
     private static void addTokens(TestTokenField field) {
@@ -112,38 +120,95 @@ class TokenFieldCaptionDerivationTest {
     // Per-mode expectations
     // ------------------------------------------------------------------
 
+    private static TestTokenField field(ItemCaptionMode mode,
+            boolean withExplicitCaptions) {
+        TestTokenField field = new TestTokenField();
+        configure(field, mode, container(), withExplicitCaptions);
+        addTokens(field);
+        return field;
+    }
+
     /**
-     * The full mode table. {@code INDEX} resolving to {@code -1} for a token the
-     * container does not hold is {@link IndexedContainer#indexOfId(Object)}
-     * speaking, exactly as it does for a Vaadin select; that mode is only
-     * meaningful for tokens the container holds.
+     * What {@link TokenField#getTokenCaption(Object)} answers, per mode, for a
+     * token the container holds and one it does not, with and without an
+     * explicit caption. Only {@code EXPLICIT} and {@code EXPLICIT_DEFAULTS_ID}
+     * read explicit captions at all; the other modes ignore them, which is
+     * {@code AbstractSelect}'s switch and not a TokenField decision.
+     * <p>
+     * {@code INDEX} answering {@code -1} outside the container is
+     * {@link IndexedContainer#indexOfId(Object)} speaking, exactly as it does
+     * for a Vaadin select; that mode is only meaningful for contained tokens.
+     * {@code ITEM} is covered separately - its caption is an Item's toString.
      */
     @ParameterizedTest
     @CsvSource({
-            "ID,                   id-a,       id-x",
-            "ID_TOSTRING,          id-a,       id-x",
-            "INDEX,                0,          -1",
-            "EXPLICIT_DEFAULTS_ID, Explicit A, Explicit X",
-            "EXPLICIT,             Explicit A, Explicit X",
-            "ICON_ONLY,            id-a,       id-x",
-            "PROPERTY,             Alpha,      id-x",
+            // mode,              in,         out,  in+caption, out+caption
+            "ID,                  id-a,       id-x, id-a,       id-x",
+            "ID_TOSTRING,         id-a,       id-x, id-a,       id-x",
+            "INDEX,               0,          -1,   0,          -1",
+            "EXPLICIT_DEFAULTS_ID,id-a,       id-x, Explicit A, Explicit X",
+            "EXPLICIT,            '',         '',   Explicit A, Explicit X",
+            "ICON_ONLY,           '',         '',   '',         ''",
+            "PROPERTY,            Alpha,      id-x, Alpha,      id-x",
     })
-    void captionPerMode(ItemCaptionMode mode, String expectedIn,
-            String expectedOut) {
-        TestTokenField field = configureFirst(mode, container());
+    void tokenCaptionPerMode(ItemCaptionMode mode, String in, String out,
+            String inWithCaption, String outWithCaption) {
+        TestTokenField plain = field(mode, false);
+        assertWithMessage("contained token, " + mode)
+                .that(plain.getTokenCaption(IN)).isEqualTo(in);
+        assertWithMessage("token outside the container, " + mode)
+                .that(plain.getTokenCaption(OUT)).isEqualTo(out);
 
-        assertWithMessage("token in the container, " + mode + " mode")
-                .that(caption(field, IN)).isEqualTo(expectedIn);
-        assertWithMessage("token outside the container, " + mode + " mode")
-                .that(caption(field, OUT)).isEqualTo(expectedOut);
+        TestTokenField captioned = field(mode, true);
+        assertWithMessage("contained token with explicit caption, " + mode)
+                .that(captioned.getTokenCaption(IN)).isEqualTo(inWithCaption);
+        assertWithMessage("outside token with explicit caption, " + mode)
+                .that(captioned.getTokenCaption(OUT))
+                .isEqualTo(outWithCaption);
     }
 
-    @Test
-    void itemModeUsesTheItemForContainedTokensAndFallsBackForTheRest() {
-        IndexedContainer c = container();
-        TestTokenField field = configureFirst(ItemCaptionMode.ITEM, c);
+    /**
+     * The same matrix at the button, where the empty-caption fallback applies -
+     * no token may render nameless.
+     */
+    @ParameterizedTest
+    @CsvSource({
+            // mode,              in,         out,  in+caption, out+caption
+            "ID,                  id-a,       id-x, id-a,       id-x",
+            "ID_TOSTRING,         id-a,       id-x, id-a,       id-x",
+            "INDEX,               0,          -1,   0,          -1",
+            "EXPLICIT_DEFAULTS_ID,id-a,       id-x, Explicit A, Explicit X",
+            "EXPLICIT,            id-a,       id-x, Explicit A, Explicit X",
+            "ICON_ONLY,           id-a,       id-x, id-a,       id-x",
+            "PROPERTY,            Alpha,      id-x, Alpha,      id-x",
+    })
+    void buttonCaptionPerMode(ItemCaptionMode mode, String in, String out,
+            String inWithCaption, String outWithCaption) {
+        TestTokenField plain = field(mode, false);
+        assertWithMessage("contained token, " + mode)
+                .that(caption(plain, IN)).isEqualTo(in);
+        assertWithMessage("token outside the container, " + mode)
+                .that(caption(plain, OUT)).isEqualTo(out);
 
-        assertThat(caption(field, IN)).isEqualTo(c.getItem(IN).toString());
+        TestTokenField captioned = field(mode, true);
+        assertWithMessage("contained token with explicit caption, " + mode)
+                .that(caption(captioned, IN)).isEqualTo(inWithCaption);
+        assertWithMessage("outside token with explicit caption, " + mode)
+                .that(caption(captioned, OUT)).isEqualTo(outWithCaption);
+    }
+
+    /** ITEM, which the tables above cannot express: the caption is an Item. */
+    @ParameterizedTest
+    @ValueSource(booleans = { false, true })
+    void itemModeUsesTheItemForContainedTokensAndFallsBackForTheRest(
+            boolean withExplicitCaptions) {
+        IndexedContainer c = container();
+        TestTokenField field = new TestTokenField();
+        configure(field, ItemCaptionMode.ITEM, c, withExplicitCaptions);
+        addTokens(field);
+
+        assertWithMessage("ITEM renders the Item, explicit captions are ignored")
+                .that(caption(field, IN)).isEqualTo(c.getItem(IN).toString());
         assertWithMessage("No Item to render, so the tokenId carries the token")
                 .that(caption(field, OUT)).isEqualTo(OUT);
     }
@@ -151,15 +216,6 @@ class TokenFieldCaptionDerivationTest {
     // ------------------------------------------------------------------
     // The empty-caption fallback
     // ------------------------------------------------------------------
-
-    @Test
-    void getTokenCaptionFollowsTheModeAndMayBeEmpty() {
-        TestTokenField field = new TestTokenField();
-        field.setTokenCaptionMode(ItemCaptionMode.EXPLICIT);
-
-        assertWithMessage("getTokenCaption must not second-guess the mode")
-                .that(field.getTokenCaption("no-caption")).isEmpty();
-    }
 
     /**
      * ITEM and PROPERTY read the caption off the container item, so a select
@@ -198,19 +254,6 @@ class TokenFieldCaptionDerivationTest {
                 .that(field.getTokenCaption(IN)).isEmpty();
         assertWithMessage("The button still needs something to show")
                 .that(caption(field, IN)).isEqualTo(IN);
-    }
-
-    @ParameterizedTest
-    @EnumSource(value = ItemCaptionMode.class, names = { "EXPLICIT",
-            "ICON_ONLY" })
-    void modesThatAreEmptyByDesignStayEmptyOutsideTheContainer(
-            ItemCaptionMode mode) {
-        TestTokenField field = new TestTokenField();
-        field.setTokenCaptionMode(mode);
-
-        assertWithMessage(mode + " resolves to nothing by design, not for lack"
-                + " of a container item")
-                .that(field.getTokenCaption(OUT)).isEmpty();
     }
 
     @Test
