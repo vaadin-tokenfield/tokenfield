@@ -21,8 +21,6 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
@@ -807,32 +805,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     public String getTokenCaption(Object tokenId) {
         ItemCaptionMode mode = getTokenCaptionMode();
         if ((mode == ItemCaptionMode.ITEM || mode == ItemCaptionMode.PROPERTY)
-                && !containsToken(tokenId)) {
+                && !cb.containsId(tokenId)) {
             return String.valueOf(tokenId);
         }
         return cb.getItemCaption(tokenId);
-    }
-
-    /**
-     * Whether the container holds this token.
-     */
-    private boolean containsToken(Object tokenId) {
-        try {
-            return cb.containsId(tokenId);
-        } catch (RuntimeException e) {
-            logRejectedToken(tokenId, e);
-            return false;
-        }
-    }
-
-    /**
-     * A container keyed by a type throws for an id it cannot convert instead of
-     * reporting it absent - that refusal means "not contained".
-     */
-    private static void logRejectedToken(Object tokenId, RuntimeException e) {
-        Logger.getLogger(TokenField.class.getName()).log(Level.FINE, e,
-                () -> "Container rejected the token id " + tokenId
-                        + "; treating it as not contained");
     }
 
     /**
@@ -858,16 +834,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @return the icon for the given token, or {@code null} if there is none
      */
     public Resource getTokenIcon(Object tokenId) {
-        try {
-            return cb.getItemIcon(tokenId);
-        } catch (RuntimeException e) {
-            // Reads the icon property off the container item, so a token the
-            // container cannot hold gets the same treatment as in
-            // getTokenCaption. Wrapped here rather than around the property
-            // lookup, which AbstractSelect performs internally.
-            logRejectedToken(tokenId, e);
-            return null;
-        }
+        return cb.getItemIcon(tokenId);
     }
 
     /**
