@@ -167,7 +167,7 @@ public class DemoRoot extends UI {
                         Contact c = new Contact("", tokenId.toString());
                         if (set != null && set.contains(c)) {
                             // duplicate
-                            Notification.show(getTokenCaption(tokenId)
+                            Notification.show(getTokenButtonCaption(tokenId)
                                     + " is already added");
                         } else {
                             if (!cb.containsId(c)) {
@@ -203,8 +203,11 @@ public class DemoRoot extends UI {
                     protected void configureTokenButton(Object tokenId,
                             Button button) {
                         super.configureTokenButton(tokenId, button);
-                        // custom caption
-                        button.setCaption(getTokenCaption(tokenId) + " <"
+                        // Custom caption. getTokenButtonCaption, not
+                        // getTokenCaption: an off-book contact has no "name" to
+                        // read in this ITEM_CAPTION_MODE_PROPERTY field, so the
+                        // caption is empty and the token stands for itself.
+                        button.setCaption(getTokenButtonCaption(tokenId) + " <"
                                 + tokenId + ">");
                         // width
                         button.setWidth("100%");

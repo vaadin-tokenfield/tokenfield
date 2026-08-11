@@ -18,9 +18,12 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   `AbstractSelect.getItemCaption(Object)` for every tokenId. It no longer short-circuits to
   `String.valueOf(tokenId)` for tokens the container does not contain, so the `ItemCaptionMode` is
   honoured for those too — an explicit caption on such a token is now used instead of ignored.
-  As in Vaadin, the result may be empty when the mode resolves to nothing (`ICON_ONLY`, or
-  `EXPLICIT` without a caption); what a token *button* shows in that case is decided by the new
-  `getTokenButtonCaption(Object)`. Unchanged in the default `EXPLICIT_DEFAULTS_ID` mode.
+  As in Vaadin, the result may be empty when the mode resolves to nothing (`ICON_ONLY`, `EXPLICIT`
+  without a caption, or `PROPERTY` for a token the container does not hold); what a token *button*
+  shows in that case is decided by the new `getTokenButtonCaption(Object)`. Unchanged in the default
+  `EXPLICIT_DEFAULTS_ID` mode. **Migration:** an override that builds a custom caption from
+  `getTokenCaption` should call `getTokenButtonCaption` instead, or it will render an empty label
+  where it used to get the tokenId — both demo panels show the pattern.
 - **Breaking:** `configureTokenButton(Object, Button)` is now called again on the same button
   whenever the data it derives from changes, not only once at creation. Overrides must be
   idempotent — assign state rather than accumulate it. The default implementation resets the style
