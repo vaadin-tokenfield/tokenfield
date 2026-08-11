@@ -20,6 +20,9 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   reconfigured, so overrides must be idempotent.
 - In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
   itself instead of being left blank — a documented deviation from `AbstractSelect`.
+- `rememberToken(String)` adds the new item under its own id rather than under its caption,
+  matching `AbstractSelect.DefaultNewItemHandler`. It no longer throws when a token's caption and
+  id differ.
 
 ### Added
 
@@ -46,6 +49,11 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Clicking a token of a read-only field no longer throws `Property.ReadOnlyException`.
 - `removeToken` no longer throws on a field that has no value
   ([#13](https://github.com/vaadin-tokenfield/tokenfield/issues/13)).
+- A container that answers a lookup for a token id it cannot hold by throwing rather than by
+  reporting it absent — a `JPAContainer` keyed by `Long` asked about a `String`, for instance — no
+  longer propagates that exception out of caption and icon resolution; the refusal is read as "no
+  such item" ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24), caption and icon
+  paths; `containsId` is unchanged).
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.
 - Add-on JAR no longer carries an unresolvable `Class-Path` manifest entry.

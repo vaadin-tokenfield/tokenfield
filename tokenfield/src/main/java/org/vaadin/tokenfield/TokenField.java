@@ -301,13 +301,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
-
-            }
+        // The id is the text the user typed; the caption property, if used, is
+        // filled with that same text so the item reads back as it was entered.
+        if (cb.addItem(tokenId) != null && getTokenCaptionPropertyId() != null) {
+            cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
+                    .setValue(tokenId);
         }
     }
 
