@@ -59,10 +59,9 @@ import com.vaadin.ui.Window;
  * </ul>
  * <p>
  * The overrides below all exist to keep the second kind away from the
- * container. {@code TokenField} resolves a caption by asking the container
- * {@code containsId(tokenId)} first, and a {@code JPAContainer} asked whether
- * it contains {@code "new@example.com"} does not answer false — it fails
- * trying to convert that {@code String} to a {@code Long}:
+ * container. A {@code JPAContainer} asked whether it contains
+ * {@code "new@example.com"} does not answer false — it fails trying to convert
+ * that {@code String} to a {@code Long}:
  * </p>
  *
  * <pre>
@@ -71,11 +70,13 @@ import com.vaadin.ui.Window;
  * java.lang.Long]
  * </pre>
  * <p>
- * That is <a href=
- * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. Until it
- * is fixed in the add-on, an application over a typed container has to resolve
- * such captions itself, which is what {@link #getTokenCaption(Object)} does
- * here.
+ * That was <a href=
+ * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>, and the
+ * add-on no longer walks into it: caption resolution never probes the container
+ * for membership, and treats a container that refuses an id as one that cannot
+ * caption it. The {@link #getTokenCaption(Object)} override below is kept
+ * because this panel wants a specific answer for an off-book token, not because
+ * the add-on needs the help.
  * </p>
  */
 public class JpaAddressBookPanel extends Panel {
