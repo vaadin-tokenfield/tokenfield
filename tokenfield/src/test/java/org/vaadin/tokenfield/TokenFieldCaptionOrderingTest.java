@@ -68,6 +68,25 @@ class TokenFieldCaptionOrderingTest {
     }
 
     /**
+     * The buttons of a value set all at once must follow the value's own order,
+     * not the hash order of an intermediate set.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void tokenButtonsFollowTheOrderOfTheBoundValue() {
+        LinkedHashSet<Object> value = new LinkedHashSet<Object>();
+        value.add("charlie");
+        value.add("alpha");
+        value.add("bravo");
+
+        field.setPropertyDataSource(new ObjectProperty(value));
+
+        assertWithMessage("Token buttons must appear in the order of the bound value")
+                .that(field.getTokenButtons().keySet())
+                .containsExactly("charlie", "alpha", "bravo").inOrder();
+    }
+
+    /**
      * Container membership must not be a precondition for having a caption:
      * {@code AbstractSelect.getItemCaption} never asks {@code containsId}, and
      * tokens outside the container are a supported case of this component.

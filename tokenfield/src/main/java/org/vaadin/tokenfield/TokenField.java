@@ -16,12 +16,15 @@
 package org.vaadin.tokenfield;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
@@ -88,7 +91,20 @@ import com.vaadin.ui.themes.Reindeer;
  * a specific property as token caption) AND allow new tokens to be input (
  * {@link #setNewTokensAllowed(boolean)}), you should properly set up
  * {@link #setTokenCaptionMode(ItemCaptionMode)} and/or {@link #setTokenCaption(Object, String)}
- * to provide a sensible caption for the new token.
+ * to provide a sensible caption for the new token. Failing that, a token the
+ * container cannot caption falls back to its own string representation - see
+ * {@link #getTokenCaption(Object)}.
+ * </p>
+ *
+ * <p>
+ * Token captions and icons are resolved from the data source, not captured when
+ * the token button is created, so the order of the calls that set them up does
+ * not matter: a caption set before the container arrives, or a caption property
+ * configured after the token was added, shows up all the same. The buttons also
+ * follow later changes - items appearing or disappearing, and edits to the
+ * caption or icon property of a token that is shown. Each such change
+ * re-invokes {@link #configureTokenButton(Object, Button)}, which is therefore
+ * required to be idempotent.
  * </p>
  *
  * <p>
@@ -159,6 +175,25 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     protected LinkedHashMap<Object, Button> buttons = new LinkedHashMap<>();
 
     protected boolean rememberNewTokens = true;
+
+    /**
+     * Captions set with {@link #setTokenCaption(Object, String)}. AbstractSelect
+     * keeps its own copy, but privately, and only consults it in the EXPLICIT
+     * modes; this one lets an explicit caption serve as a fallback in every
+     * mode - see {@link #getTokenCaption(Object)}.
+     */
+    private final Map<Object, String> explicitCaptions = new HashMap<>();
+
+    /**
+     * Keeps the token buttons in step with edits to the data behind them.
+     */
+    private final TokenCaptionChangeListener captionChangeListener = new TokenCaptionChangeListener();
+
+    /**
+     * Guards against re-entering a refresh, which {@link #configureTokenButton}
+     * could do by touching the container.
+     */
+    private boolean refreshing;
 
     /**
      * Create a new TokenField with a caption and a {@link InsertPosition}.
@@ -284,17 +319,47 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
         });
 
+        // AbstractSelect is itself a Container change notifier: it re-broadcasts
+        // the events of whatever container is current, and re-registers itself on
+        // a container swap. Listening to the input box rather than to the
+        // container directly means there is no listener lifecycle to manage here.
+        cb.addItemSetChangeListener(new Container.ItemSetChangeListener() {
+
+            private static final long serialVersionUID = 7355596064126239188L;
+
+            public void containerItemSetChange(
+                    Container.ItemSetChangeEvent event) {
+                refreshTokenButtons();
+            }
+        });
+        cb.addPropertySetChangeListener(new Container.PropertySetChangeListener() {
+
+            private static final long serialVersionUID = -8397059533531432075L;
+
+            public void containerPropertySetChange(
+                    Container.PropertySetChangeEvent event) {
+                refreshTokenButtons();
+            }
+        });
+
         setLayout(lo);
 
     }
 
+    /**
+     * Adds a token the user just entered to the container, under its own id.
+     *
+     * @param tokenId
+     *            the id of the new token
+     */
+    @SuppressWarnings("unchecked")
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
+        if (cb.addItem(tokenId) != null && getTokenCaptionPropertyId() != null) {
             // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
-
+            Property<Object> caption = cb.getContainerProperty(tokenId,
+                    getTokenCaptionPropertyId());
+            if (caption != null) {
+                caption.setValue(tokenId);
             }
         }
     }
@@ -338,8 +403,8 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             newValue = new HashSet<>();
         }
 
-        Set<Object> remove = new HashSet<>(old);
-        Set<Object> add = new HashSet<>(newValue);
+        Set<Object> remove = new LinkedHashSet<>(old);
+        Set<Object> add = new LinkedHashSet<>(newValue);
         remove.removeAll(newValue);
         add.removeAll(old);
 
@@ -349,6 +414,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         for (Object tokenId : add) {
             addTokenButton(tokenId);
         }
+        captionChangeListener.rebuild();
     }
 
     /**
@@ -454,10 +520,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * This also means that when new tokens are disallowed (
      * {@link #setNewTokensAllowed(boolean)}) you can programmatically add
      * tokens that the user cannot add him/herself. <br>
-     * Consider adding the token to the container before calling
-     * {@link #addToken(Object)} if you're using a custom caption based on
-     * container/item properties, or if you want the token to be available to
-     * the user as a suggestion later.
+     * Add the token to the container as well if you want it to be available to
+     * the user as a suggestion later. Doing so is not needed for the caption's
+     * sake, and neither is doing it first: a caption based on container or item
+     * properties is picked up whenever the container catches up.
      * </p>
      * 
      * @param tokenId
@@ -501,6 +567,54 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     /**
+     * Re-applies {@link #configureTokenButton(Object, Button)} to every token
+     * button, so that they show what the data source says right now.
+     * <p>
+     * Called whenever the caption or icon source changes - a token caption,
+     * caption mode, caption or icon property id, the container itself, or the
+     * data inside it. The buttons are reconfigured in place, so their identity
+     * and click listeners survive.
+     * </p>
+     */
+    protected void refreshTokenButtons() {
+        if (refreshing) {
+            // configureTokenButton is an override hook and may touch the
+            // container; don't let the resulting change event re-enter here.
+            return;
+        }
+        refreshing = true;
+        try {
+            for (Map.Entry<Object, Button> token : buttons.entrySet()) {
+                configureTokenButton(token.getKey(), token.getValue());
+            }
+        } finally {
+            refreshing = false;
+        }
+        captionChangeListener.rebuild();
+    }
+
+    /**
+     * Re-applies {@link #configureTokenButton(Object, Button)} to a single token
+     * button; does nothing if that token has no button.
+     *
+     * @param tokenId
+     *            the token whose button to refresh
+     */
+    protected void refreshTokenButton(Object tokenId) {
+        Button button = buttons.get(tokenId);
+        if (button == null || refreshing) {
+            return;
+        }
+        refreshing = true;
+        try {
+            configureTokenButton(tokenId, button);
+        } finally {
+            refreshing = false;
+        }
+        captionChangeListener.rebuild();
+    }
+
+    /**
      * Configures the token button.
      * <p>
      * By default, the caption, icon, description, and style are set. Override to
@@ -508,7 +622,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * Note that the default click-listener is added elsewhere and can not be
      * changed here.
      * </p>
-     * 
+     * <p>
+     * This is called when the button is created, and <b>again</b> whenever the
+     * data it is derived from changes - see {@link #refreshTokenButtons()}. An
+     * override must therefore be idempotent: configure the button from
+     * {@code tokenId} only, and don't accumulate state such as extra listeners.
+     * By the same token, a button property set from outside this method is lost
+     * at the next refresh.
+     * </p>
+     *
      * @param tokenId
      *            the token this button pertains to
      * @param button
@@ -603,6 +725,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void setContainerDataSource(Container c) {
         cb.setContainerDataSource(c);
+        // AbstractSelect marks itself dirty on a swap but fires no item set
+        // change, so the token buttons have to be told about it here.
+        refreshTokenButtons();
     }
 
     /**
@@ -704,21 +829,73 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     /**
-     * Gets the caption for the given token; the caption can be based on a
-     * property, just as in a ComboBox. Note that the string representation of
-     * the tokenId itself is always used if the container does not contain the
-     * id.
-     * 
+     * Gets the caption for the given token; the caption is resolved from the
+     * data source exactly as {@link AbstractSelect#getItemCaption(Object)} would
+     * resolve it, for every {@link ItemCaptionMode}.
+     * <p>
+     * Container membership is not a precondition for having a caption - tokens
+     * outside the container are a supported case of this component. When the
+     * data source yields nothing usable (no such item, no such property, an
+     * empty result, or a typed container that refuses an id it cannot hold), the
+     * caption falls back to a caption set with
+     * {@link #setTokenCaption(Object, String)}, and failing that to
+     * {@code String.valueOf(tokenId)}. A {@code null} token id gives {@code ""}.
+     * </p>
+     * <p>
+     * Two deliberate differences to {@code AbstractSelect}, both of which follow
+     * from tokens being buttons the user has to be able to read and dismiss:
+     * an unresolvable caption falls back rather than being empty, and an
+     * explicit caption applies in the container-derived modes
+     * ({@code PROPERTY}, {@code ITEM}, {@code INDEX}) too, where
+     * {@code AbstractSelect} would ignore it. {@code ICON_ONLY} is not
+     * overridden: it means captions are hidden, so it gives {@code ""}.
+     * </p>
+     *
      * @param tokenId
      *            the id of the token
-     * @return the caption
+     * @return the caption, never null
      */
     public String getTokenCaption(Object tokenId) {
-        if (cb.containsId(tokenId)) {
-            return cb.getItemCaption(tokenId);
-        } else {
-            return "" + tokenId;
+        if (tokenId == null) {
+            return "";
         }
+        ItemCaptionMode mode = getTokenCaptionMode();
+        if (mode == ItemCaptionMode.ICON_ONLY) {
+            return "";
+        }
+        String caption = resolveTokenCaption(tokenId, mode);
+        if (caption != null && !caption.isEmpty()) {
+            return caption;
+        }
+        String explicit = explicitCaptions.get(tokenId);
+        return explicit != null ? explicit : String.valueOf(tokenId);
+    }
+
+    /**
+     * The caption as the input box resolves it, or null if the data source
+     * cannot provide one for this token.
+     */
+    private String resolveTokenCaption(Object tokenId, ItemCaptionMode mode) {
+        try {
+            if (mode == ItemCaptionMode.INDEX && indexOfToken(tokenId) < 0) {
+                // AbstractSelect would report "-1" here, or an error string for
+                // a container that isn't indexed at all.
+                return null;
+            }
+            return cb.getItemCaption(tokenId);
+        } catch (RuntimeException e) {
+            // A typed container may refuse an id it cannot hold rather than
+            // reporting it as absent; Table guards getItemCaption the same way.
+            return null;
+        }
+    }
+
+    private int indexOfToken(Object tokenId) {
+        Container source = cb.getContainerDataSource();
+        if (source instanceof Container.Indexed) {
+            return ((Container.Indexed) source).indexOfId(tokenId);
+        }
+        return -1;
     }
 
     /**
@@ -865,7 +1042,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the desired caption
      */
     public void setTokenCaption(Object tokenId, String caption) {
+        if (tokenId != null) {
+            if (caption == null) {
+                explicitCaptions.remove(tokenId);
+            } else {
+                explicitCaptions.put(tokenId, caption);
+            }
+        }
         cb.setItemCaption(tokenId, caption);
+        refreshTokenButton(tokenId);
     }
 
     /**
@@ -873,6 +1058,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void setTokenCaptionMode(ItemCaptionMode mode) {
         cb.setItemCaptionMode(mode);
+        refreshTokenButtons();
     }
 
     /**
@@ -880,6 +1066,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void setTokenCaptionPropertyId(Object propertyId) {
         cb.setItemCaptionPropertyId(propertyId);
+        refreshTokenButtons();
     }
 
     /**
@@ -887,6 +1074,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void setTokenIcon(Object tokenId, Resource icon) {
         cb.setItemIcon(tokenId, icon);
+        refreshTokenButton(tokenId);
     }
 
     /**
@@ -894,6 +1082,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void setTokenIconPropertyId(Object propertyId) {
         cb.setItemIconPropertyId(propertyId);
+        refreshTokenButtons();
     }
 
     /**
@@ -918,6 +1107,97 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     @Override
     protected Component initContent() {
         return layout;
+    }
+
+    @Override
+    public void detach() {
+        captionChangeListener.clear();
+        super.detach();
+    }
+
+    /**
+     * Listens to the item properties the token captions and icons are read
+     * from, so that editing the data behind a token updates its button - what
+     * {@code AbstractSelect.CaptionChangeListener} does for a painted select.
+     * <p>
+     * The set of items to watch is simply {@link #buttons}, so the notifiers are
+     * rebuilt whenever the tokens or the caption configuration change. Only
+     * property <em>values</em> are watched here; properties appearing or
+     * disappearing arrive as the container's property set change instead.
+     * </p>
+     */
+    private class TokenCaptionChangeListener implements
+            Property.ValueChangeListener {
+
+        private static final long serialVersionUID = 5352727259939338877L;
+
+        private final Set<Property.ValueChangeNotifier> notifiers = new HashSet<>();
+
+        public void valueChange(Property.ValueChangeEvent event) {
+            refreshTokenButtons();
+        }
+
+        void rebuild() {
+            clear();
+            ItemCaptionMode mode = getTokenCaptionMode();
+            Object iconPropertyId = getTokenIconPropertyId();
+            for (Object tokenId : buttons.keySet()) {
+                if (mode == ItemCaptionMode.PROPERTY) {
+                    listenTo(tokenId, getTokenCaptionPropertyId());
+                } else if (mode == ItemCaptionMode.ITEM) {
+                    listenToWholeItem(tokenId);
+                }
+                if (iconPropertyId != null) {
+                    listenTo(tokenId, iconPropertyId);
+                }
+            }
+        }
+
+        void clear() {
+            for (Property.ValueChangeNotifier notifier : notifiers) {
+                notifier.removeValueChangeListener(this);
+            }
+            notifiers.clear();
+        }
+
+        /** In ITEM mode the caption is the item's toString, so watch it all. */
+        private void listenToWholeItem(Object tokenId) {
+            Item item;
+            try {
+                item = cb.getItem(tokenId);
+            } catch (RuntimeException e) {
+                return; // a container that can't hold this id, see #24
+            }
+            if (item == null || item.getItemPropertyIds() == null) {
+                return;
+            }
+            for (Object propertyId : item.getItemPropertyIds()) {
+                listen(item.getItemProperty(propertyId));
+            }
+        }
+
+        private void listenTo(Object tokenId, Object propertyId) {
+            if (propertyId != null) {
+                listen(propertyOf(tokenId, propertyId));
+            }
+        }
+
+        private Property<?> propertyOf(Object tokenId, Object propertyId) {
+            try {
+                return cb.getContainerProperty(tokenId, propertyId);
+            } catch (RuntimeException e) {
+                return null; // a container that can't hold this id, see #24
+            }
+        }
+
+        private void listen(Property<?> property) {
+            if (property instanceof Property.ValueChangeNotifier) {
+                Property.ValueChangeNotifier notifier = (Property.ValueChangeNotifier) property;
+                if (notifiers.add(notifier)) {
+                    notifier.addValueChangeListener(this);
+                }
+            }
+        }
     }
 
 }
