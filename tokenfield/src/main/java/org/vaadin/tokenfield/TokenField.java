@@ -290,7 +290,12 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
+        // The token is added under its own id, not under its caption: the
+        // caption property below is looked up by tokenId, so the two have to
+        // agree. This used to read getTokenCaption(tokenId), which returned the
+        // id string only because the token was by definition not yet in the
+        // container.
+        if (cb.addItem(tokenId) != null) {
             // Sets the caption property, if used
             if (getTokenCaptionPropertyId() != null) {
                 cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
@@ -609,7 +614,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void setContainerDataSource(Container c) {
         cb.setContainerDataSource(c);
-        for (Map.Entry<Object, Button> entry : buttons.entrySet()) {
+        // Iterated over a copy: configureTokenButton is an override point, and
+        // an implementation that removes a token would otherwise mutate the map
+        // being iterated.
+        for (Map.Entry<Object, Button> entry : new LinkedHashMap<>(buttons).entrySet()) {
             configureTokenButton(entry.getKey(), entry.getValue());
         }
     }
@@ -722,18 +730,39 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @return the caption
      */
     public String getTokenCaption(Object tokenId) {
-        // The ComboBox is asked directly instead of first checking
-        // containsId(): a caption set with setTokenCaption is kept by
-        // AbstractSelect independently of the container, so a membership guard
-        // would throw it away whenever the token buttons are built before the
-        // container data source is set. getItemCaption yields an empty string
-        // (or null for a null id) when it has nothing to offer, which is when
-        // the id string is used instead.
+        // The ComboBox is asked directly instead of behind a containsId()
+        // guard: a caption set with setTokenCaption is kept by AbstractSelect
+        // independently of the container, so a membership guard would throw it
+        // away whenever the token buttons are built before the container data
+        // source is set. getItemCaption yields an empty string (or null for a
+        // null id) when it has nothing to offer, which is when the id string is
+        // used instead.
         String caption = cb.getItemCaption(tokenId);
-        if (caption == null || caption.isEmpty()) {
+        if (caption == null || caption.isEmpty()
+                || (!captionModeWorksWithoutContainer() && !cb.containsId(tokenId))) {
             return "" + tokenId;
         }
         return caption;
+    }
+
+    /*
+     * Whether the current caption mode can caption a token the container does
+     * not hold. EXPLICIT and ID derive the caption from the explicit-caption
+     * map or from the token id itself, so they can. The container-reading modes
+     * cannot, and only ITEM and PROPERTY say so by returning an empty caption -
+     * INDEX answers with the "-1" of a failed index lookup, which must not be
+     * mistaken for a caption.
+     */
+    private boolean captionModeWorksWithoutContainer() {
+        switch (cb.getItemCaptionMode()) {
+        case EXPLICIT:
+        case EXPLICIT_DEFAULTS_ID:
+        case ID:
+        case ID_TOSTRING:
+            return true;
+        default:
+            return false;
+        }
     }
 
     /**

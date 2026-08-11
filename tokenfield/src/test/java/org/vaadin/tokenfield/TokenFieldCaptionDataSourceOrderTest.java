@@ -148,6 +148,72 @@ class TokenFieldCaptionDataSourceOrderTest {
     }
 
     /**
+     * {@link ItemCaptionMode#INDEX} answers a lookup for a missing id with the
+     * {@code -1} of a failed {@code indexOfId}, not with an empty string. That
+     * is not a caption and must not reach the button.
+     */
+    @Test
+    void indexModeDoesNotShowMinusOneForATokenOutsideTheContainer() {
+        TestTokenField f = new TestTokenField();
+        f.setTokenCaptionMode(ItemCaptionMode.INDEX);
+        IndexedContainer c = new IndexedContainer();
+        c.addItem("in-container");
+        f.setContainerDataSource(c);
+
+        assertThat(f.getTokenCaption("not-there")).isEqualTo("not-there");
+        assertWithMessage("A token the container does hold still gets its index")
+                .that(f.getTokenCaption("in-container")).isEqualTo("0");
+    }
+
+    /**
+     * {@code rememberToken} must add the token under its own id. It looks the
+     * caption property up by token id straight afterwards, so adding it under
+     * its caption would both mis-key the container and break that lookup.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    @Test
+    void rememberTokenAddsTheTokenIdNotItsCaption() {
+        TestTokenField f = new TestTokenField();
+        f.setNewTokensAllowed(true);
+        f.setRememberNewTokens(true);
+        f.setPropertyDataSource(new ObjectProperty(new LinkedHashSet<Object>()));
+
+        // A caption is registered for an id the user has not typed yet.
+        f.setTokenCaption("foo", "Foo Label");
+        f.simulateNewItemInput("foo");
+
+        assertThat(f.getContainerDataSource().getItemIds()).containsExactly("foo");
+        assertThat(f.getTokenIds()).containsExactly("foo");
+        assertWithMessage("The registered caption is still what the button shows")
+                .that(captionOf(f, "foo")).isEqualTo("Foo Label");
+    }
+
+    /**
+     * {@code configureTokenButton} is an override point, so an implementation
+     * that removes a token must not blow up the re-configuration loop.
+     */
+    @Test
+    void removingATokenFromConfigureTokenButtonDoesNotBreakTheContainerSwap() {
+        TestTokenField f = new TestTokenField() {
+            @Override
+            protected void configureTokenButton(Object tokenId, Button button) {
+                super.configureTokenButton(tokenId, button);
+                if ("drop-me".equals(tokenId) && getContainerDataSource().size() > 0) {
+                    removeToken(tokenId);
+                }
+            }
+        };
+        f.addToken("drop-me");
+        f.addToken("keep");
+
+        IndexedContainer c = new IndexedContainer();
+        c.addItem("keep");
+        f.setContainerDataSource(c);
+
+        assertThat(f.getTokenButtons().keySet()).containsExactly("keep");
+    }
+
+    /**
      * Re-captioning on {@code setContainerDataSource} must not clobber tokens
      * the new container knows nothing about.
      */
