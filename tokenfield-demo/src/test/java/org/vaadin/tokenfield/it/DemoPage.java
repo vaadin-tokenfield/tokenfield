@@ -83,10 +83,9 @@ final class DemoPage {
 
     /**
      * The Vaadin error indicators inside a panel. An exception thrown out of a
-     * server-side listener does not surface as a notification in Vaadin 7:
-     * {@code DefaultErrorHandler} attaches the failure to the component it came
-     * from via {@code setComponentError}, which the client renders as one of
-     * these.
+     * server-side listener surfaces as one of these, not as a notification:
+     * Vaadin 7's {@code DefaultErrorHandler} attaches the failure to the
+     * component it came from.
      */
     Locator errorIndicators(int index) {
         return panelContent(index).locator(".v-errorindicator");
@@ -105,13 +104,10 @@ final class DemoPage {
     }
 
     /**
-     * Clicks straight through Playwright's actionability checks, the way a
-     * user hammering on a chip that looks clickable would. Needed only to
-     * assert that activating something the user is <em>not</em> supposed to be
-     * able to activate really is inert: a Vaadin 7 button is a styled
-     * {@code <div>}, not a {@code <button>}, so a plain {@code click()} passes
-     * the enabled-check either way and would prove nothing about whether the
-     * click reaches the server.
+     * Clicks straight through Playwright's actionability checks, to assert that
+     * something the user should not be able to activate really is inert. A
+     * Vaadin 7 button is a styled {@code <div>}, so a plain {@code click()}
+     * passes the enabled-check either way and would prove nothing.
      */
     void forceClick(Locator locator) {
         locator.click(new Locator.ClickOptions().setForce(true));

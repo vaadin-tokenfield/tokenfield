@@ -437,19 +437,12 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         configureTokenButton(val, b);
         applyReadOnlyState(b, isReadOnly());
         /*
-         * The read-only guard belongs here rather than in onTokenClick: that
-         * one is a documented extension point, so a subclass replacing it would
-         * drop the guard with it. This listener is the click RPC's entry point
-         * and cannot be overridden, which is what Vaadin does too - see
-         * CheckBox#setChecked, whose CheckBoxServerRpc implementation opens with
-         * the same early return.
-         *
-         * Nothing upstream of here checks: ButtonServerRpc#click is a bare
-         * fireClick(details), and the framework drops an incoming RPC only for a
-         * connector that is not connector-enabled, which reads
-         * isVisible()/isEnabled() and the parent chain - never the read-only
-         * flag. Only the server-side Button#click() convenience method consults
-         * it, and a click arriving from a browser does not go through that.
+         * Nothing upstream checks read-only for us: ButtonServerRpc#click is a
+         * bare fireClick(details), and the framework drops an incoming RPC only
+         * for a connector that is not connector-enabled - which never consults
+         * the read-only flag. So guard here, as CheckBox#setChecked does, and
+         * not in onTokenClick: that is an extension point, and a subclass
+         * replacing it would drop the guard with it.
          */
         b.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = -1943432188848347317L;
@@ -665,23 +658,16 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     /*
      * Puts a token button into the state matching the field's read-only flag.
      *
-     * setReadOnly alone is inert on a Button: Vaadin ships no client-side
-     * read-only handling for it at all, so the flag only reaches the DOM as a
-     * v-readonly style name. Disabling is what actually keeps the click from
-     * being sent, because the client drops it before the RPC and the server
-     * drops it again on the connector-enabled check.
+     * setReadOnly alone is inert on a Button - Vaadin ships no client-side
+     * read-only handling for it - so setEnabled is what keeps the click from
+     * being sent at all. It is the UX half only; the enforcement is the guard
+     * in addTokenButton's ClickListener.
      *
-     * That makes setEnabled a stand-in for the connector this add-on does not
-     * have yet, not the enforcement itself - the guard in addTokenButton's
-     * ClickListener is. It has a cost worth knowing about: read-only is
-     * expressed by writing the *enabled* property, so clearing read-only
-     * re-enables every token button, including one a configureTokenButton
-     * override deliberately disabled, and a read-only token renders as
-     * v-disabled rather than only v-readonly. Replacing it with a dedicated
-     * token component plus a connector - the way VOptionGroup and
-     * VTwinColSelect apply isEnabled() && !isReadonly() to their child controls
-     * without touching the server-side property - is tracked separately, since
-     * it changes both rendering and the add-on's public surface.
+     * Expressing read-only by writing the *enabled* property has a cost:
+     * clearing read-only re-enables every token button, including one a
+     * configureTokenButton override deliberately disabled, and a read-only
+     * token renders as v-disabled rather than only v-readonly. Replacing it
+     * with a dedicated token component plus a connector is tracked in #37.
      */
     private void applyReadOnlyState(Button b, boolean readOnly) {
         b.setReadOnly(readOnly);

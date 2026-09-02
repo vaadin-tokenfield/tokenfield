@@ -90,16 +90,13 @@ public class TestTokenField extends TokenField {
     }
 
     /**
-     * Delivers a Button click RPC straight to a token button, the way
+     * Delivers a Button click RPC to a token button, the way
      * {@code ServerRpcHandler} does once an invocation has cleared its
-     * {@code isConnectorEnabled()} filter. This is the path issue #13 arrived
-     * on: {@code ButtonServerRpc.click} is a bare {@code fireClick(details)}
-     * with no read-only check of its own.
+     * {@code isConnectorEnabled()} filter - the path issue #13 arrived on.
      *
-     * <p>{@link com.vaadin.ui.Button#click()} cannot stand in for this. Its
-     * body is {@code if (isEnabled() && !isReadOnly())}, so on a read-only
-     * field it returns before reaching the listener and would pass whether or
-     * not the guard exists.</p>
+     * <p>{@link com.vaadin.ui.Button#click()} cannot stand in for it: that one
+     * returns early on a read-only button, so it would pass whether or not the
+     * field guards the click.</p>
      */
     public void simulateTokenClickRpc(Object tokenId) throws Exception {
         ServerRpcMethodInvocation click = new ServerRpcMethodInvocation(

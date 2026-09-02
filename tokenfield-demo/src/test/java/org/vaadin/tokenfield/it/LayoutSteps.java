@@ -27,7 +27,7 @@ public class LayoutSteps {
     private static final int AFTER = 0;
     private static final int BEFORE = 1;
 
-    /** Vaadin's disabled marker, one class among the several a chip carries. */
+    /** One class among the several a chip carries. */
     private static final Pattern DISABLED = Pattern.compile("\\bv-disabled\\b");
 
     private final DemoWorld world;
