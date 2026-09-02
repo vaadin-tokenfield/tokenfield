@@ -311,7 +311,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
     }
 
-    /*
+    /**
      * Rebuilds from scratch
      */
     private void rebuild() {
@@ -341,10 +341,6 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         Set<Object> old = buttons.keySet();
 
         super.setInternalValue(newValue);
-
-        if (old == null) {
-            old = new HashSet<>();
-        }
 
         if (newValue == null) {
             newValue = new HashSet<>();
@@ -435,18 +431,14 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     private void addTokenButton(final Object val) {
         Button b = new Button();
         configureTokenButton(val, b);
-        applyReadOnlyState(b, isReadOnly());
-        /*
-         * Nothing upstream checks read-only for us: ButtonServerRpc#click is a
-         * bare fireClick(details), and the framework drops an incoming RPC only
-         * for a connector that is not connector-enabled - which never consults
-         * the read-only flag. So guard here, as CheckBox#setChecked does, and
-         * not in onTokenClick: that is an extension point, and a subclass
-         * replacing it would drop the guard with it.
-         */
         b.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = -1943432188848347317L;
 
+            /*
+             * Button#click RPC ignores read-only, so guard here (like
+             * CheckBox#setChecked) rather than in onTokenClick, which a
+             * subclass could override and lose the guard.
+             */
             public void buttonClick(ClickEvent event) {
                 if (isReadOnly()) {
                     return;
@@ -581,6 +573,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         button.setIcon(getTokenIcon(tokenId));
         button.setDescription("Click to remove");
         button.setStyleName(Reindeer.BUTTON_LINK);
+        applyReadOnlyState(button, isReadOnly());
     }
 
     /**
@@ -655,22 +648,23 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
     }
 
-    /*
+    /**
      * Puts a token button into the state matching the field's read-only flag.
-     *
-     * setReadOnly alone is inert on a Button - Vaadin ships no client-side
-     * read-only handling for it - so setEnabled is what keeps the click from
-     * being sent at all. It is the UX half only; the enforcement is the guard
-     * in addTokenButton's ClickListener.
-     *
-     * Expressing read-only by writing the *enabled* property has a cost:
-     * clearing read-only re-enables every token button, including one a
-     * configureTokenButton override deliberately disabled, and a read-only
-     * token renders as v-disabled rather than only v-readonly. Replacing it
-     * with a dedicated token component plus a connector is tracked in #37.
+     * <p>
+     * This is the UX half only; the enforcement is the guard in
+     * addTokenButton's ClickListener.
+     * </p>
+     * <p>
+     * Warning: this re-enables every button, even one a configureTokenButton
+     * override might have disabled.
+     * See #37 for a proper fix.
+     * </p>
      */
     private void applyReadOnlyState(Button b, boolean readOnly) {
         b.setReadOnly(readOnly);
+        // setReadOnly alone is inert on a Button - Vaadin ships no client-side
+        // read-only handling for it - so setEnabled is what keeps the click
+        // from being sent at all.
         b.setEnabled(!readOnly);
     }
 

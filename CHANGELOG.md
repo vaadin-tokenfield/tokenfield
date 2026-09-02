@@ -43,8 +43,8 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 
 - Token captions and icons no longer depend on the order of the initialisation calls
   ([#8](https://github.com/vaadin-tokenfield/tokenfield/issues/8)).
-- Clicking a token of a read-only field no longer throws `Property.ReadOnlyException`, and
-  `removeToken` no longer throws on a field that has no value
+- Clicking a token of a read-only field no longer throws `Property.ReadOnlyException`.
+- `removeToken` no longer throws on a field that has no value
   ([#13](https://github.com/vaadin-tokenfield/tokenfield/issues/13)).
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.

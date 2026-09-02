@@ -4,7 +4,6 @@ import com.vaadin.ui.Button;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashSet;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -147,7 +146,7 @@ class TokenFieldNullReadOnlyReproTest {
 
         assertTrue(f.getTokenButtons().containsKey("pre-ro"),
                 "A token of a read-only field must survive being clicked");
-        assertTrue(((Set<?>) f.getValue()).contains("pre-ro"),
+        assertTrue(f.getValue().contains("pre-ro"),
                 "The field's value must still hold the token that was clicked");
     }
 
