@@ -1,6 +1,10 @@
 package org.vaadin.tokenfield;
 
 import com.vaadin.data.Property;
+import com.vaadin.server.ServerRpcManager;
+import com.vaadin.server.ServerRpcMethodInvocation;
+import com.vaadin.shared.MouseEventDetails;
+import com.vaadin.shared.ui.button.ButtonServerRpc;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Component;
 import com.vaadin.ui.Layout;
@@ -83,6 +87,25 @@ public class TestTokenField extends TokenField {
      */
     public void simulateDeleteKey() {
         cb.onDelete();
+    }
+
+    /**
+     * Delivers a Button click RPC straight to a token button, the way
+     * {@code ServerRpcHandler} does once an invocation has cleared its
+     * {@code isConnectorEnabled()} filter. This is the path issue #13 arrived
+     * on: {@code ButtonServerRpc.click} is a bare {@code fireClick(details)}
+     * with no read-only check of its own.
+     *
+     * <p>{@link com.vaadin.ui.Button#click()} cannot stand in for this. Its
+     * body is {@code if (isEnabled() && !isReadOnly())}, so on a read-only
+     * field it returns before reaching the listener and would pass whether or
+     * not the guard exists.</p>
+     */
+    public void simulateTokenClickRpc(Object tokenId) throws Exception {
+        ServerRpcMethodInvocation click = new ServerRpcMethodInvocation(
+                "token-button", ButtonServerRpc.class, "click", 1);
+        click.setParameters(new Object[] { new MouseEventDetails() });
+        ServerRpcManager.applyInvocation(buttons.get(tokenId), click);
     }
 
     /** Simulates {@link TokenField#setLayout(Layout)}, which is protected. */

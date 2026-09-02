@@ -9,26 +9,27 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Reproduction tests for issue 03 — Null safety &amp; read-only state in token
- * operations.
+ * Regression tests for issue 03 — null safety &amp; read-only state in token
+ * operations, reported as
+ * <a href="https://github.com/vaadin-tokenfield/tokenfield/issues/13">#13</a>.
  *
- * <p><strong>These tests are expected to FAIL against the current production code.</strong>
- * They document the two bugs described in code-review/03-null-and-state-handling.md
- * and must remain failing until the bugs are fixed.</p>
+ * <p>Each test below was written against the unfixed code and observed to fail
+ * there; they stand now as guards against the three defects coming back.</p>
  *
  * <ul>
- *   <li><strong>3a</strong>: {@code removeToken} throws NPE when the field value is null
- *       (field was never given a value).  {@link TokenField#removeToken} does
- *       not guard against {@code getValue() == null}, unlike {@code addToken}
- *       which does.  Fix: add an early-return guard before constructing the
- *       {@code LinkedHashSet}.</li>
- *   <li><strong>3b</strong>: Token buttons created while the field is already in
- *       read-only mode are not themselves read-only.  {@code addTokenButton}
- *       never calls {@code b.setReadOnly(isReadOnly())}, so if tokens are
- *       injected via {@code setInternalValue} (bypassing the
- *       {@code AbstractField.setValue} read-only guard) the new button is left
- *       interactive.  Fix: call {@code b.setReadOnly(isReadOnly())} inside
- *       {@code addTokenButton}.</li>
+ *   <li><strong>3a</strong>: {@code removeToken} threw an NPE when the field
+ *       value was null (a field never given a value). It cast {@code getValue()}
+ *       straight into {@code new LinkedHashSet<>(set)} without the null guard
+ *       {@code addToken} already had.</li>
+ *   <li><strong>3b</strong>: token buttons created while the field was already
+ *       read-only were not themselves read-only. {@code addTokenButton} applied
+ *       no state to the fresh button, so a token injected via
+ *       {@code setInternalValue} — bypassing the {@code AbstractField.setValue}
+ *       read-only guard — was left marked writable.</li>
+ *   <li><strong>3c</strong>: clicking a token of a read-only field removed it,
+ *       or rather tried to and threw {@code Property.ReadOnlyException} out of
+ *       the button's {@code ClickListener}. This is the one the stack trace in
+ *       #13 shows.</li>
  * </ul>
  */
 class TokenFieldNullReadOnlyReproTest {
@@ -45,14 +46,11 @@ class TokenFieldNullReadOnlyReproTest {
      * constructs {@code new LinkedHashSet<>(null)}, which throws
      * {@link NullPointerException}.
      *
-     * <p>This test FAILS with the current code because the NPE is thrown.
-     * After the fix (null guard added to {@code removeToken}) it must pass.
      */
     @Test
     void removeTokenOnNullValueDoesNotThrow() {
         TestTokenField f = new TestTokenField();
         // getValue() is null — no token was ever added or set
-        // BUG: currently throws NullPointerException inside removeToken
         assertDoesNotThrow(() -> f.removeToken("nonexistent"),
                 "removeToken on a null-value field must not throw NPE");
     }
@@ -61,14 +59,12 @@ class TokenFieldNullReadOnlyReproTest {
      * Edge case for 3a: value is explicitly set to null via setValue(null),
      * then removeToken is called.
      *
-     * <p>This test FAILS with the current code for the same NPE reason.
      */
     @Test
     void removeTokenAfterSetValueNullDoesNotThrow() {
         TestTokenField f = new TestTokenField();
         f.addToken("initial");
         f.setValue(null);   // explicit null — buttons map is cleared
-        // BUG: the next call constructs new LinkedHashSet<>(null) → NPE
         assertDoesNotThrow(() -> f.removeToken("initial"),
                 "removeToken after setValue(null) must not throw NPE");
     }
@@ -85,14 +81,8 @@ class TokenFieldNullReadOnlyReproTest {
      * the {@code AbstractField.setValue} guard), the resulting token button
      * must be read-only.
      *
-     * <p>{@code addTokenButton} creates the button but never calls
-     * {@code b.setReadOnly(isReadOnly())}.  Therefore the button is left in
-     * its default (writable) state, which allows the user to click it and
-     * trigger {@code removeToken} even though the field is read-only.
-     *
-     * <p>This test FAILS with the current code because the button's
-     * {@code isReadOnly()} returns {@code false} even though the field is
-     * read-only.  After the fix it must pass.
+     * <p>Before the fix {@code addTokenButton} applied no state to the fresh
+     * button, leaving it marked writable on a read-only field.
      */
     @Test
     void tokenButtonAddedWhileReadOnlyIsItselfReadOnly() {
@@ -113,8 +103,6 @@ class TokenFieldNullReadOnlyReproTest {
         Button b = f.getTokenButtons().get("ro-token");
         assertNotNull(b, "Button for 'ro-token' must exist in the buttons map");
 
-        // BUG: b.isReadOnly() is currently false — addTokenButton never calls
-        //      b.setReadOnly(isReadOnly()).  The assertion below will FAIL.
         assertTrue(b.isReadOnly(),
                 "A token button created while the field is read-only must itself be read-only");
     }
@@ -123,11 +111,8 @@ class TokenFieldNullReadOnlyReproTest {
      * Secondary check for 3b: after adding tokens while read-only,
      * toggling the field back to writable must make those same buttons writable.
      *
-     * <p>This verifies the round-trip behaviour once sub-issue 3b is fixed.
-     * With the current (broken) code this test happens to pass by accident
-     * (the button was already writable), so it is included only as a guard
-     * for the post-fix state and does not need to fail now.  We include it
-     * here for completeness.
+     * <p>A round-trip guard rather than a repro: this one passed before the
+     * fix too, since the button was already writable.
      */
     @Test
     void tokenButtonAddedWhileReadOnlyBecomesWritableAfterReadOnlyCleared() {
@@ -168,7 +153,7 @@ class TokenFieldNullReadOnlyReproTest {
     }
 
     // -----------------------------------------------------------------------
-    // 3c — read-only does not stop a token button from accepting clicks (#13)
+    // 3c — a click on a token of a read-only field must not remove it (#13)
     //
     // This is the sub-issue the reported stack trace in GitHub issue #13 is
     // about:
@@ -178,49 +163,64 @@ class TokenFieldNullReadOnlyReproTest {
     //       at TokenField.onTokenClick
     //       at TokenField$4.buttonClick   ← the token button's ClickListener
     //
-    // Marking a Button read-only does not stop the client from reaching its
-    // click listener. Vaadin drops an incoming RPC call only when the target
-    // connector is *disabled*: ServerRpcHandler consults
-    // ClientConnector#isConnectorEnabled(), and AbstractComponent implements
-    // that as isVisible() && isEnabled() && <parent chain> — the read-only
-    // flag is not part of it. So a read-only-but-enabled token button still
-    // has its ClickListener invoked, which calls removeToken -> setValue on a
-    // read-only field -> ReadOnlyException.
+    // Nothing upstream of that listener checks the read-only flag.
+    // ButtonServerRpc#click is a bare fireClick(details), and the framework
+    // drops an incoming RPC only for a connector that is not
+    // connector-enabled — AbstractComponent implements that as isVisible() &&
+    // isEnabled() && <parent chain>, which never consults read-only. So the
+    // listener has to guard itself, the way CheckBox#setChecked does.
     //
-    // (isConnectorEnabled() itself is not assertable here: it walks up to the
-    // UI, which a detached unit-test field does not have. isEnabled() is the
-    // property under this add-on's control and the one that gate reads.)
+    // The tests below drive the RPC rather than asserting on the buttons'
+    // isEnabled()/isReadOnly() state, because that state is how the current
+    // implementation happens to keep the click from being sent, not what a
+    // caller is promised. Button#click() would not do: it returns early on a
+    // read-only button and so passes whether or not the guard exists.
     // -----------------------------------------------------------------------
 
     /**
-     * Repro for sub-issue 3c: a token button that existed before the field was
-     * put into read-only mode must be disabled, not merely marked read-only.
+     * Repro for sub-issue 3c, on the path the issue was reported from: a token
+     * added while the field was writable, then clicked after it went read-only.
      *
-     * <p>FAILS with the current code: {@code setReadOnly} calls only
-     * {@code b.setReadOnly(true)}, leaving {@code isEnabled()} true.
+     * <p>FAILS without the guard: the click reaches {@code removeToken}, which
+     * calls {@code setValue} on a read-only field and throws.
      */
     @Test
-    void tokenButtonIsDisabledWhileFieldIsReadOnly() {
+    void clickOnReadOnlyFieldDoesNotThrow() {
         TestTokenField f = new TestTokenField();
         f.addToken("pre-ro");
         f.setReadOnly(true);
 
-        Button b = f.getTokenButtons().get("pre-ro");
-        assertNotNull(b);
-        assertFalse(b.isEnabled(),
-                "A token button must be disabled while the field is read-only, so that "
-                        + "Vaadin drops the click RPC before it reaches removeToken (#13)");
+        assertDoesNotThrow(() -> f.simulateTokenClickRpc("pre-ro"),
+                "Clicking a token of a read-only field must not throw ReadOnlyException (#13)");
     }
 
     /**
-     * Repro for sub-issue 3c on the other path: a token button created
-     * <em>while</em> the field is already read-only must also be disabled.
-     *
-     * <p>FAILS with the current code: {@code addTokenButton} applies no state
-     * at all to the freshly created button.
+     * The other half of 3c: the token must still be there afterwards. Asserted
+     * separately from the exception because the two failure modes are
+     * independent — a guard could swallow the exception and still remove the
+     * token.
      */
     @Test
-    void tokenButtonAddedWhileReadOnlyIsDisabled() {
+    void clickOnReadOnlyFieldKeepsTheToken() throws Exception {
+        TestTokenField f = new TestTokenField();
+        f.addToken("pre-ro");
+        f.setReadOnly(true);
+
+        f.simulateTokenClickRpc("pre-ro");
+
+        assertTrue(f.getTokenButtons().containsKey("pre-ro"),
+                "A token of a read-only field must survive being clicked");
+        assertTrue(((Set<?>) f.getValue()).contains("pre-ro"),
+                "The field's value must still hold the token that was clicked");
+    }
+
+    /**
+     * Repro for 3c on the second creation path: a token injected while the
+     * field is already read-only, bypassing the {@code AbstractField.setValue}
+     * guard, must be just as inert.
+     */
+    @Test
+    void clickOnTokenAddedWhileReadOnlyDoesNotRemoveIt() {
         TestTokenField f = new TestTokenField();
         f.setReadOnly(true);
 
@@ -228,42 +228,42 @@ class TokenFieldNullReadOnlyReproTest {
         tokenSet.add("ro-token3");
         f.exposeSetInternalValue(tokenSet);
 
-        Button b = f.getTokenButtons().get("ro-token3");
-        assertNotNull(b, "Button for 'ro-token3' must exist in the buttons map");
-        assertFalse(b.isEnabled(),
-                "A token button created while the field is read-only must be disabled");
+        assertDoesNotThrow(() -> f.simulateTokenClickRpc("ro-token3"),
+                "A token created while the field is read-only must also be inert");
+        assertTrue(f.getTokenButtons().containsKey("ro-token3"),
+                "That token must survive being clicked");
     }
 
     /**
-     * Round-trip guard: clearing read-only must re-enable the token buttons,
-     * otherwise the fix for 3c would leave the field permanently unusable
-     * after a single read-only toggle.
+     * Baseline: the guard must block read-only clicks only. On a writable field
+     * the very same call still removes the token — otherwise a fix that simply
+     * swallowed every click would pass the tests above.
      */
     @Test
-    void tokenButtonIsReEnabledWhenReadOnlyIsCleared() {
+    void clickOnWritableFieldRemovesTheToken() throws Exception {
+        TestTokenField f = new TestTokenField();
+        f.addToken("plain");
+
+        f.simulateTokenClickRpc("plain");
+
+        assertFalse(f.getTokenButtons().containsKey("plain"),
+                "Clicking a token of a writable field must remove it");
+    }
+
+    /**
+     * Round-trip guard: clearing read-only makes the tokens clickable again,
+     * so a fix cannot leave the field permanently inert after one toggle.
+     */
+    @Test
+    void clickWorksAgainOnceReadOnlyIsCleared() throws Exception {
         TestTokenField f = new TestTokenField();
         f.addToken("toggle-me");
         f.setReadOnly(true);
         f.setReadOnly(false);
 
-        Button b = f.getTokenButtons().get("toggle-me");
-        assertNotNull(b);
-        assertTrue(b.isEnabled(),
-                "Token buttons must be clickable again once read-only is cleared");
-    }
+        f.simulateTokenClickRpc("toggle-me");
 
-    /**
-     * Baseline: a token button on a writable field is enabled. Guards against a
-     * fix that disables buttons unconditionally.
-     */
-    @Test
-    void tokenButtonOnWritableFieldIsEnabled() {
-        TestTokenField f = new TestTokenField();
-        f.addToken("plain");
-
-        Button b = f.getTokenButtons().get("plain");
-        assertNotNull(b);
-        assertTrue(b.isEnabled(),
-                "Token buttons on a writable field must remain enabled");
+        assertFalse(f.getTokenButtons().containsKey("toggle-me"),
+                "Tokens must be removable again once read-only is cleared");
     }
 }
