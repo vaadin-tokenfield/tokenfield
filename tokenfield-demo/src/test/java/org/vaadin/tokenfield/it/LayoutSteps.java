@@ -6,6 +6,7 @@ import io.cucumber.java.en.When;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
@@ -25,6 +26,9 @@ public class LayoutSteps {
     private static final int CSS_LAYOUT = 3;
     private static final int AFTER = 0;
     private static final int BEFORE = 1;
+
+    /** Vaadin's disabled marker, one class among the several a chip carries. */
+    private static final Pattern DISABLED = Pattern.compile("\\bv-disabled\\b");
 
     private final DemoWorld world;
 
@@ -95,6 +99,21 @@ public class LayoutSteps {
     @Then("the text input reappears")
     public void inputVisibleAgain() {
         assertThat(world.demo().input(world.panel())).hasCount(1);
+    }
+
+    @Then("the {string} token chip is shown as disabled")
+    public void chipIsDisabled(String text) {
+        assertThat(world.demo().chip(world.panel(), text)).hasClass(DISABLED);
+    }
+
+    @When("I click the {string} token chip anyway")
+    public void clickChipAnyway(String text) {
+        world.demo().forceClick(world.demo().chip(world.panel(), text));
+    }
+
+    @Then("no error indicator is shown in the example")
+    public void noErrorIndicator() {
+        assertThat(world.demo().errorIndicators(world.panel())).hasCount(0);
     }
 
     private static int layoutIndexFor(String name) {

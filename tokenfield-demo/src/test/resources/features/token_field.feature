@@ -288,6 +288,28 @@ Feature: TokenField everyday usage
     When I mark the field as editable again
     Then the text input reappears
 
+  # Regression guard for issue #13. A read-only field used to leave its token
+  # buttons enabled, so clicking a chip still ran onTokenClick -> removeToken
+  # -> setValue against a read-only field and failed with
+  # Property.ReadOnlyException. Marking the button read-only is not enough on
+  # its own: Vaadin drops an incoming click RPC only for a connector that is
+  # *disabled*. Hence the forced click below - the point is not that the chip
+  # refuses the click, it is that the click reaches nothing.
+  Scenario: A token cannot be clicked away while the field is read-only
+    Given the "Layout and insert position" example
+    And I have added the token "locked"
+    When I mark the field as read-only
+    And I click the "locked" token chip anyway
+    Then the "locked" token remains
+    And no error indicator is shown in the example
+    And the "locked" token chip is shown as disabled
+    # The toggle back is a full server round-trip, so a removal the stray click
+    # had started server-side would have shown up by now.
+    When I mark the field as editable again
+    Then the "locked" token remains
+    When I click the "locked" token chip
+    Then the "locked" token is removed from the field
+
   # ---------------------------------------------------------------------
   # JPA address book, on its own — the scenarios above already cover this
   # panel's behaviour against the BeanItemContainer one. What is left is
