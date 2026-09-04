@@ -330,11 +330,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
     }
 
-    /*
+    /**
      * Might create a HashSet or two unnecessarily from time to time, but seems
      * clearer that way.
-     * 
-     * @see org.vaadin.tokenfield.CustomField#setInternalValue(java.lang.Object)
+     *
+     * @see com.vaadin.ui.CustomField#setInternalValue(java.lang.Object)
      */
     @Override
     protected void setInternalValue(Set<?> newValue) {
