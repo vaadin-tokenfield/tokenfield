@@ -288,6 +288,21 @@ Feature: TokenField everyday usage
     When I mark the field as editable again
     Then the text input reappears
 
+  # A read-only field is read-only for its tokens too: they stay visible, but
+  # they cannot be removed. Also guards against #13 coming back.
+  Scenario: A token cannot be removed while the field is read-only
+    Given the "Layout and insert position" example
+    And I have added the token "locked"
+    When I mark the field as read-only
+    And I click the "locked" token chip anyway
+    Then the "locked" token remains
+    And no error indicator is shown in the example
+    And the "locked" token chip is shown as disabled
+    When I mark the field as editable again
+    Then the "locked" token remains
+    When I click the "locked" token chip
+    Then the "locked" token is removed from the field
+
   # ---------------------------------------------------------------------
   # JPA address book, on its own — the scenarios above already cover this
   # panel's behaviour against the BeanItemContainer one. What is left is

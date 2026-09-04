@@ -311,7 +311,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
     }
 
-    /*
+    /**
      * Rebuilds from scratch
      */
     private void rebuild() {
@@ -330,21 +330,17 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
     }
 
-    /*
+    /**
      * Might create a HashSet or two unnecessarily from time to time, but seems
      * clearer that way.
-     * 
-     * @see org.vaadin.tokenfield.CustomField#setInternalValue(java.lang.Object)
+     *
+     * @see com.vaadin.ui.CustomField#setInternalValue(java.lang.Object)
      */
     @Override
     protected void setInternalValue(Set<?> newValue) {
         Set<Object> old = buttons.keySet();
 
         super.setInternalValue(newValue);
-
-        if (old == null) {
-            old = new HashSet<>();
-        }
 
         if (newValue == null) {
             newValue = new HashSet<>();
@@ -438,7 +434,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         b.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = -1943432188848347317L;
 
+            /*
+             * Button#click RPC ignores read-only, so guard here (like
+             * CheckBox#setChecked) rather than in onTokenClick, which a
+             * subclass could override and lose the guard.
+             */
             public void buttonClick(ClickEvent event) {
+                if (isReadOnly()) {
+                    return;
+                }
                 onTokenClick(val);
             }
         });
@@ -528,6 +532,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public void removeToken(Object tokenId) {
         Set<?> set = getValue();
+        if (set == null) {
+            return;
+        }
         LinkedHashSet<Object> newSet = new LinkedHashSet<>(set);
         newSet.remove(tokenId);
 
@@ -566,6 +573,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         button.setIcon(getTokenIcon(tokenId));
         button.setDescription("Click to remove");
         button.setStyleName(Reindeer.BUTTON_LINK);
+        applyReadOnlyState(button, isReadOnly());
     }
 
     /**
@@ -630,7 +638,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             return;
         }
         for (Button b : buttons.values()) {
-            b.setReadOnly(readOnly);
+            applyReadOnlyState(b, readOnly);
         }
         super.setReadOnly(readOnly);
         if (readOnly) {
@@ -638,6 +646,26 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         } else {
             rebuild();
         }
+    }
+
+    /**
+     * Puts a token button into the state matching the field's read-only flag.
+     * <p>
+     * This is the UX half only; the enforcement is the guard in
+     * addTokenButton's ClickListener.
+     * </p>
+     * <p>
+     * Warning: this re-enables every button, even one a configureTokenButton
+     * override might have disabled.
+     * See #37 for a proper fix.
+     * </p>
+     */
+    private void applyReadOnlyState(Button b, boolean readOnly) {
+        b.setReadOnly(readOnly);
+        // setReadOnly alone is inert on a Button - Vaadin ships no client-side
+        // read-only handling for it - so setEnabled is what keeps the click
+        // from being sent at all.
+        b.setEnabled(!readOnly);
     }
 
     /**

@@ -1,6 +1,10 @@
 package org.vaadin.tokenfield;
 
 import com.vaadin.data.Property;
+import com.vaadin.server.ServerRpcManager;
+import com.vaadin.server.ServerRpcMethodInvocation;
+import com.vaadin.shared.MouseEventDetails;
+import com.vaadin.shared.ui.button.ButtonServerRpc;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Component;
 import com.vaadin.ui.Layout;
@@ -8,6 +12,7 @@ import com.vaadin.ui.Layout;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Test subclass of {@link TokenField} that exposes protected fields and
@@ -84,6 +89,22 @@ public class TestTokenField extends TokenField {
         cb.onDelete();
     }
 
+    /**
+     * Delivers a Button click RPC to a token button, the way
+     * {@code ServerRpcHandler} does once an invocation has cleared its
+     * {@code isConnectorEnabled()} filter - the path issue #13 arrived on.
+     *
+     * <p>{@link com.vaadin.ui.Button#click()} cannot stand in for it: that one
+     * returns early on a read-only button, so it would pass whether or not the
+     * field guards the click.</p>
+     */
+    public void simulateTokenClickRpc(Object tokenId) throws Exception {
+        ServerRpcMethodInvocation click = new ServerRpcMethodInvocation(
+                "token-button", ButtonServerRpc.class, "click", 1);
+        click.setParameters(new Object[] { new MouseEventDetails() });
+        ServerRpcManager.applyInvocation(buttons.get(tokenId), click);
+    }
+
     /** Simulates {@link TokenField#setLayout(Layout)}, which is protected. */
     public void changeLayout(Layout lo) {
         setLayout(lo);
@@ -106,6 +127,16 @@ public class TestTokenField extends TokenField {
     /** Returns the current layout for component-order assertions. */
     public Layout getInternalLayout() {
         return layout;
+    }
+
+    /**
+     * Directly calls the protected {@code setInternalValue}, bypassing the
+     * read-only guard in {@link com.vaadin.ui.AbstractField#setValue}. Used to
+     * inject a value while the field is already read-only, in order to
+     * exercise {@code addTokenButton} in that state.
+     */
+    public void exposeSetInternalValue(Set<?> value) {
+        setInternalValue(value);
     }
 
     /** Returns all layout components in their current order. */
