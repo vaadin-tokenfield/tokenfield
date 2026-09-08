@@ -1,6 +1,5 @@
 package org.vaadin.tokenfield;
 
-import com.vaadin.data.Property;
 import com.vaadin.server.ServerRpcManager;
 import com.vaadin.server.ServerRpcMethodInvocation;
 import com.vaadin.shared.MouseEventDetails;
@@ -8,6 +7,7 @@ import com.vaadin.shared.ui.button.ButtonServerRpc;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.Component;
 import com.vaadin.ui.Layout;
+import com.vaadin.ui.UI;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -67,17 +67,15 @@ public class TestTokenField extends TokenField {
 
     /**
      * Simulates the user typing a new (not-in-container) token and submitting it.
-     * Mirrors the {@link com.vaadin.ui.AbstractSelect.NewItemHandler} logic
-     * wired in the {@link TokenField} constructor.
+     *
+     * <p>This invokes the very {@link com.vaadin.ui.AbstractSelect.NewItemHandler}
+     * that the {@link TokenField} constructor wires into the ComboBox — the same
+     * object {@code ComboBox.changeVariables} calls when the browser sends a
+     * {@code newitem} variable. Re-implementing the handler's body here instead
+     * would leave the handler itself untested.</p>
      */
     public void simulateNewItemInput(String text) {
-        if (isReadOnly()) {
-            throw new Property.ReadOnlyException();
-        }
-        onTokenInput(text);
-        if (rememberNewTokens) {
-            rememberToken(text);
-        }
+        cb.getNewItemHandler().addNewItem(text);
     }
 
     /**
@@ -103,6 +101,22 @@ public class TestTokenField extends TokenField {
                 "token-button", ButtonServerRpc.class, "click", 1);
         click.setParameters(new Object[] { new MouseEventDetails() });
         ServerRpcManager.applyInvocation(buttons.get(tokenId), click);
+    }
+
+    /**
+     * Puts this field into the given UI so that the embedded ComboBox is
+     * reachable from {@link UI#getConnectorTracker()}, which is what tests
+     * asserting on repaints need.
+     *
+     * <p>{@link com.vaadin.ui.CustomField} builds its content in
+     * {@code attach()}, and Vaadin only calls {@code attach()} once the UI has
+     * a {@code VaadinSession} — far more machinery than a unit test wants.
+     * Calling {@code getContent()} directly links the same
+     * ComboBox → layout → field → UI parent chain that {@code getUI()} walks.</p>
+     */
+    public void attachTo(UI ui) {
+        ui.setContent(this);
+        getContent();
     }
 
     /** Simulates {@link TokenField#setLayout(Layout)}, which is protected. */

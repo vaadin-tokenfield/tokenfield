@@ -97,6 +97,18 @@ public class TokenEntrySteps {
         assertThat(world.demo().input(world.panel())).hasValue("");
     }
 
+    /**
+     * Weaker than {@link #inputIsEmpty()} on purpose, for panels that set an
+     * input prompt: Vaadin 7 renders the prompt as the input's value, so an
+     * input that has been cleared reads as either "" or the prompt depending on
+     * whether the field still has focus. What matters is that the text the user
+     * turned into a token is gone.
+     */
+    @Then("the input no longer shows {string}")
+    public void inputNoLongerShows(String text) {
+        assertThat(world.demo().input(world.panel())).not().hasValue(text);
+    }
+
     @Then("the input shows the placeholder {string}")
     public void inputShowsPlaceholder(String text) {
         assertThat(world.demo().input(world.panel())).hasValue(text);
