@@ -300,15 +300,27 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
+    /**
+     * Adds a token the user just entered to the container, under its own id.
+     *
+     * @param tokenId
+     *            the id of the new token
+     */
+    @SuppressWarnings("unchecked")
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
+        if (cb.addItem(tokenId) == null) {
+            return;
+        }
+        if (getTokenCaptionPropertyId() != null) {
             // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
-
+            Property<Object> caption = cb.getContainerProperty(tokenId,
+                    getTokenCaptionPropertyId());
+            if (caption != null) {
+                caption.setValue(tokenId);
             }
         }
+        // The container changed under a shown token; see refreshTokens()
+        refreshTokenButton(tokenId);
     }
 
     /**
@@ -346,8 +358,8 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             newValue = new HashSet<>();
         }
 
-        Set<Object> remove = new HashSet<>(old);
-        Set<Object> add = new HashSet<>(newValue);
+        Set<Object> remove = new LinkedHashSet<>(old);
+        Set<Object> add = new LinkedHashSet<>(newValue);
         remove.removeAll(newValue);
         add.removeAll(old);
 
@@ -796,6 +808,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * select's answer, empty caption included.
      * </p>
      * <p>
+     * The membership probe tolerates a typed container such as JPAContainer,
+     * which refuses an id of a foreign type by throwing rather than answering
+     * false; such an id counts as one the container does not hold.
+     * </p>
+     * <p>
      * The result otherwise follows the {@link ItemCaptionMode} and may be empty
      * where the mode says so - under {@link ItemCaptionMode#ICON_ONLY}, under
      * {@link ItemCaptionMode#EXPLICIT} for a token without an explicit caption,
@@ -812,10 +829,22 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     public String getTokenCaption(Object tokenId) {
         ItemCaptionMode mode = getTokenCaptionMode();
         if ((mode == ItemCaptionMode.ITEM || mode == ItemCaptionMode.PROPERTY)
-                && !cb.containsId(tokenId)) {
+                && !containerHolds(tokenId)) {
             return String.valueOf(tokenId);
         }
         return cb.getItemCaption(tokenId);
+    }
+
+    /**
+     * Whether the container holds the id; a container that refuses the id
+     * outright (#24) does not hold it.
+     */
+    private boolean containerHolds(Object tokenId) {
+        try {
+            return cb.containsId(tokenId);
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     /**

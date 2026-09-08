@@ -160,6 +160,22 @@ class TokenFieldAddRemoveTest {
         assertThat(field.getTokenButtons()).doesNotContainKey("remove");
     }
 
+    /**
+     * The buttons of a value set all at once must follow the value's own order,
+     * not the hash order of an intermediate set.
+     */
+    @Test
+    void setValueCreatesButtonsInTheValuesOrder() {
+        LinkedHashSet<Object> value = new LinkedHashSet<Object>();
+        value.add("charlie");
+        value.add("alpha");
+        value.add("bravo");
+        field.setValue(value);
+        assertWithMessage("Token buttons must appear in the order of the value")
+                .that(field.getTokenButtons().keySet())
+                .containsExactly("charlie", "alpha", "bravo").inOrder();
+    }
+
     @Test
     void setValueNullClearsAllButtons() {
         field.addToken("a");

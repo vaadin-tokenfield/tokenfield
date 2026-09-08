@@ -46,6 +46,14 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Clicking a token of a read-only field no longer throws `Property.ReadOnlyException`.
 - `removeToken` no longer throws on a field that has no value
   ([#13](https://github.com/vaadin-tokenfield/tokenfield/issues/13)).
+- `getTokenCaption` no longer fails on a typed container such as `JPAContainer` that refuses a
+  token id of a foreign type instead of reporting it absent; such an id now counts as one the
+  container does not hold ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24)).
+- `rememberToken` added the new item to the container keyed by its *caption* while writing the
+  caption property under the *id*, which threw once the two diverged. It now keys the item by the
+  token id.
+- Tokens set at once, as when binding a property data source, now become buttons in the value's
+  own order rather than in hash order.
 - Add missing Apache license file headers
 - Add-on JAR manifest `Implementation-Title` now matches the new Directory listing name.
 - Add-on JAR no longer carries an unresolvable `Class-Path` manifest entry.
