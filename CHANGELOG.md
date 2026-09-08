@@ -20,11 +20,27 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   reconfigured, so overrides must be idempotent.
 - In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
   itself instead of being left blank — a documented deviation from `AbstractSelect`.
+- **Breaking:** `rememberToken(String)` adds the new item under the typed text as its id rather
+  than under its caption, which is also the id the caption property is written under. It no longer
+  throws when the two differ ([#39](https://github.com/vaadin-tokenfield/tokenfield/issues/39)).
 
 ### Added
 
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
+- `TokenField.NewTokenHandler` and `setNewTokenHandler`, the counterpart of
+  `ComboBox.setNewItemHandler`: how text the user typed becomes a token. Needed for a container
+  that names or validates its items itself (`JPAContainer`, `BeanItemContainer`); the demo's
+  address-book panels show it.
+- `TokenField.initTokenCaption(String)` and `initTokenIcon(String)`, overridable hooks for what
+  `rememberToken(String)` writes into the caption/icon property of a newly entered item. Default
+  behavior is unchanged from before this release: the typed text as caption, no icon.
+- Documented and demoed the workaround for a container keyed by something other than the token id
+  (e.g. `JPAContainer` by `Long`): a `NewTokenHandler` plus a `getTokenCaption`/`getTokenIcon`
+  override, since the component itself cannot resolve such a token without asking the container
+  about an id it cannot hold. Out-of-the-box support for such containers is not a goal
+  ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24), closed as won't-fix) — see the
+  JPA address-book demo panel.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.

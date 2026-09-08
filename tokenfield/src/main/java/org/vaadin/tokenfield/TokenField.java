@@ -15,6 +15,7 @@
  */
 package org.vaadin.tokenfield;
 
+import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
@@ -58,15 +60,34 @@ import com.vaadin.ui.themes.Reindeer;
  * </p>
  *
  * <ul>
- * <li>If the token is new (not in the container) and new tokens are not allowed
- * ({@link #setNewTokensAllowed(boolean)}), nothing happens - otherwise</li>
- * <li>{@link #onTokenInput(Object)} is called; by default, it just calls</li>
- * <li>{@link #addToken(Object)} which will eventually cause a call to</li>
- * <li>{@link #configureTokenButton(Object, Button)}</li>
- * <li>finally, if the token is new, it's added to the container if
- * {@link #setRememberNewTokens(boolean)} is on - this means previous method
- * calls can know whether the token is new by examining the container.</li>
+ * <li>A token picked from the suggestions goes to
+ * {@link #onTokenInput(Object)}.</li>
+ * <li>Text that matches no suggestion is dropped unless new tokens are allowed
+ * ({@link #setNewTokensAllowed(boolean)}); otherwise it goes to the
+ * {@link NewTokenHandler}. The {@link DefaultNewTokenHandler} calls
+ * {@link #onTokenInput(Object)} with the text as the token id, then puts it in
+ * the container through {@link #rememberToken(String)} if
+ * {@link #setRememberNewTokens(boolean)} is on - the pre-#39 order, kept for
+ * backward compatibility rather than {@link AbstractSelect.DefaultNewItemHandler}'s
+ * container-first one.</li>
+ * <li>{@link #onTokenInput(Object)} by default calls {@link #addToken(Object)},
+ * which eventually causes a call to
+ * {@link #configureTokenButton(Object, Button)}.</li>
  * </ul>
+ *
+ * <p>
+ * Those two switches give three ways of using the field. <i>Writeable</i>, the
+ * default: typed text becomes a token and a container item under that text. A
+ * container that names or validates its items itself - a {@code JPAContainer},
+ * a {@code BeanItemContainer} - cannot take such an item; give the field a
+ * {@link NewTokenHandler} that creates the item through the container's own
+ * API and adds the resulting id with {@link #addToken(Object)}.
+ * <i>Oblivious</i> (new tokens allowed, not remembered): typed text becomes a
+ * token of this field only. <i>Lookup</i> (new tokens not allowed): only
+ * container items become tokens. In every mode {@link #addToken(Object)} may
+ * add a token the container does not hold: the value is the source of truth,
+ * the container supplies suggestions, captions and icons.
+ * </p>
  *
  * <p>
  * Custom functionality when adding and removing tokens, such as showing a
@@ -80,8 +101,7 @@ import com.vaadin.ui.themes.Reindeer;
  *
  * <p>
  * The content of the input (ComboBox) can be bound to a Container datasource,
- * and filtering can be used. Note that the TokenField can select values that
- * are not present in the ComboBox.
+ * and filtering can be used.
  * </p>
  *
  * <p>
@@ -93,6 +113,17 @@ import com.vaadin.ui.themes.Reindeer;
  * reconfigured, so the order in which that happens does not affect the result.
  * Changes <i>within</i> the container are not observed - pick those up with
  * {@link #refreshTokens()}.
+ * </p>
+ *
+ * <p>
+ * A container keyed by something other than the token id - a {@code
+ * JPAContainer} by {@code Long}, say - can fail resolving those captions for a
+ * token it does not hold, rather than answering that it does not hold it
+ * (<a href="https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>).
+ * Out-of-the-box support for such containers is not a goal; override
+ * {@link #getTokenCaption(Object)} / {@link #getTokenIcon(Object)} to resolve
+ * such a token without asking the container about an id it cannot hold - the
+ * JPA address-book demo panel is the worked example.
  * </p>
  *
  * <p>
@@ -171,6 +202,50 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     protected LinkedHashMap<Object, Button> buttons = new LinkedHashMap<>();
 
     protected boolean rememberNewTokens = true;
+
+    private NewTokenHandler newTokenHandler;
+
+    /**
+     * Handles text the user typed that matches no suggestion; the counterpart
+     * of {@link AbstractSelect.NewItemHandler}. Install one with
+     * {@link TokenField#setNewTokenHandler(NewTokenHandler)} for a container
+     * that names or validates its items itself: create the item through the
+     * container's own API, then {@link TokenField#addToken(Object)} the id it
+     * returns - or open a dialog and do so later.
+     */
+    public interface NewTokenHandler extends Serializable {
+
+        /**
+         * @param text
+         *            the text the user typed
+         */
+        void addNewToken(String text);
+    }
+
+    /**
+     * Hands the typed text to {@link TokenField#onTokenInput(Object)} as the
+     * token id, then puts it in the container through
+     * {@link TokenField#rememberToken(String)} if new tokens are remembered.
+     * Pre-#39 order, kept for backward compatibility: an
+     * {@link #onTokenInput(Object)} override can no longer tell a new token
+     * apart by checking the container. Install a custom {@link NewTokenHandler}
+     * that calls {@link TokenField#rememberToken(String)} before
+     * {@link TokenField#onTokenInput(Object)} for the container-first order.
+     */
+    public class DefaultNewTokenHandler implements NewTokenHandler {
+
+        private static final long serialVersionUID = 1L;
+
+        @Override
+        public void addNewToken(String text) {
+            // TODO(#40): switch to remember-before-onTokenInput for 7.1/8.0;
+            // kept as-is for 7.0.x backward compatibility.
+            onTokenInput(text);
+            if (rememberNewTokens) {
+                rememberToken(text);
+            }
+        }
+    }
 
     /**
      * Create a new TokenField with a caption and a {@link InsertPosition}.
@@ -280,17 +355,12 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
             private static final long serialVersionUID = 1L;
 
-            // This is essentially what the ComboBox.DefaultNewItemHandler does,
-            // but we'll first delegate adding token button, then add to
-            // container.
+            // Read-only is guarded here so that a custom handler cannot lose it
             public void addNewItem(String tokenId) {
                 if (isReadOnly()) {
                     throw new Property.ReadOnlyException();
                 }
-                onTokenInput(tokenId);
-                if (rememberNewTokens) {
-                    rememberToken(tokenId);
-                }
+                getNewTokenHandler().addNewToken(tokenId);
                 cb.focus();
             }
 
@@ -300,14 +370,99 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
-    protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
+    /**
+     * Sets how text the user typed becomes a token; works as
+     * {@link AbstractSelect#setNewItemHandler(NewItemHandler)}. {@code null}
+     * restores the {@link DefaultNewTokenHandler}.
+     *
+     * @param newTokenHandler
+     *            the handler, or {@code null} for the default
+     */
+    public void setNewTokenHandler(NewTokenHandler newTokenHandler) {
+        this.newTokenHandler = newTokenHandler;
+    }
 
-            }
+    /**
+     * @see #setNewTokenHandler(NewTokenHandler)
+     * @return the handler in use, never {@code null}
+     */
+    public NewTokenHandler getNewTokenHandler() {
+        if (newTokenHandler == null) {
+            newTokenHandler = new DefaultNewTokenHandler();
+        }
+        return newTokenHandler;
+    }
+
+    /**
+     * Puts text the user typed into the container, so that it is suggested the
+     * next time: an item under the text as its id. Mirrors the behavior of
+     * {@link AbstractSelect.DefaultNewItemHandler}, which always writes the
+     * typed text verbatim and has no icon of its own. Override
+     * {@link #initTokenCaption(String)} or {@link #initTokenIcon(String)} for a
+     * computed or looked-up default instead.
+     * <p>
+     * <strong>Warning:</strong> whatever the container throws for
+     * {@link Container#addItem(Object)} propagates; a container that assigns
+     * its own ids needs a custom {@link NewTokenHandler} instead.
+     *
+     * @param tokenId
+     *            the text the user typed
+     */
+    protected void rememberToken(String tokenId) {
+        Item item = cb.addItem(tokenId);
+        if (item != null) {
+            setTokenCaptionProperty(item, initTokenCaption(tokenId));
+            setTokenIconProperty(item, initTokenIcon(tokenId));
+        }
+    }
+
+    /**
+     * The caption to write into the caption property for a newly entered
+     * item. Override for a computed or looked-up default; a caption preset
+     * via {@link #setTokenCaption(Object, String)} still shows up at display
+     * time regardless of what this writes ({@link #getTokenCaption(Object)}).
+     *
+     * @param tokenId the entered token text / token id
+     * @return the caption to set; the typed text itself by default
+     */
+    protected String initTokenCaption(String tokenId) {
+        return tokenId;
+    }
+
+    /**
+     * The icon to write into the icon property for a newly entered item.
+     * Override for a computed or looked-up default; an icon preset via
+     * {@link #setTokenIcon(Object, Resource)} still shows up at display time
+     * regardless of what this writes ({@link #getTokenIcon(Object)}).
+     *
+     * @param tokenId the entered token text / token id
+     * @return the icon to set; {@code null} by default
+     */
+    protected Resource initTokenIcon(String tokenId) {
+        return null;
+    }
+
+    /**
+     * Writes the text the user typed into the caption property of the item that
+     * was created for it, if a caption property is in use and the item has one.
+     */
+    private void setTokenCaptionProperty(Item item, String caption) {
+        setItemProperty(item, getTokenCaptionPropertyId(), caption);
+    }
+
+    private void setTokenIconProperty(Item item, Resource icon) {
+        setItemProperty(item, getTokenIconPropertyId(), icon);
+    }
+
+    private static <T> void setItemProperty(Item token, Object propertyId, T value) {
+        if (token == null || propertyId == null) {
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        Property<T> caption = token.getItemProperty(propertyId);
+        if (caption != null) {
+            caption.setValue(value);
         }
     }
 
