@@ -21,6 +21,8 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
@@ -301,13 +303,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     }
 
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
-
-            }
+        // The id is the text the user typed; the caption property, if used, is
+        // filled with that same text so the item reads back as it was entered.
+        if (cb.addItem(tokenId) != null && getTokenCaptionPropertyId() != null) {
+            cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
+                    .setValue(tokenId);
         }
     }
 
@@ -812,10 +812,26 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     public String getTokenCaption(Object tokenId) {
         ItemCaptionMode mode = getTokenCaptionMode();
         if ((mode == ItemCaptionMode.ITEM || mode == ItemCaptionMode.PROPERTY)
-                && !cb.containsId(tokenId)) {
+                && !containsToken(tokenId)) {
             return String.valueOf(tokenId);
         }
         return cb.getItemCaption(tokenId);
+    }
+
+    /**
+     * Whether the container holds this token.
+     */
+    private boolean containsToken(Object tokenId) {
+        try {
+            return cb.containsId(tokenId);
+        } catch (RuntimeException e) {
+            // A container keyed by a type throws for an id it cannot convert
+            // instead of answering false - that refusal means "not contained".
+            Logger.getLogger(TokenField.class.getName()).log(Level.FINE, e,
+                    () -> "Container rejected the token id " + tokenId
+                            + "; treating it as not contained");
+            return false;
+        }
     }
 
     /**
