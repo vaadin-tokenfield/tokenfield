@@ -8,6 +8,13 @@ import com.vaadin.ui.AbstractSelect.ItemCaptionMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
+
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
@@ -30,6 +37,12 @@ class TokenFieldForeignTokenIdTest {
                 throw new IllegalArgumentException("The object [" + itemId
                         + "] could not be converted to [class java.lang.Long]");
             }
+        }
+
+        @Override
+        public boolean containsId(Object itemId) {
+            requireLongId(itemId);
+            return super.containsId(itemId);
         }
 
         @Override
@@ -111,6 +124,90 @@ class TokenFieldForeignTokenIdTest {
 
         assertThat(field.getTokenIcon(FOREIGN)).isNull();
         assertThat(caption(FOREIGN)).isEqualTo(FOREIGN);
+    }
+
+    @Test
+    void theMembershipCheckReadsTheRefusalAsNotContained() {
+        // containsId is asked before the container is read at all, and a typed
+        // container refuses a foreign id there too - the caption mode's
+        // fallback for an outsider must survive that, not propagate it
+        field.setTokenCaptionMode(ItemCaptionMode.ITEM);
+
+        assertThat(field.getTokenCaption(FOREIGN)).isEqualTo(FOREIGN);
+        assertWithMessage("Only the refused id is an outsider")
+                .that(field.getTokenCaption(CONTAINED))
+                .isEqualTo(container.getItem(CONTAINED).toString());
+    }
+
+    @Test
+    void eachRefusalIsLoggedAtFineNamingTheRejectedId() {
+        container.addContainerProperty("icon", Resource.class, null);
+        field.setTokenIconPropertyId("icon");
+
+        try (RecordedLog membership = RecordedLog.on(TokenField.class);
+                RecordedLog lookup = RecordedLog.on(TokenComboBox.class)) {
+            field.getTokenCaption(FOREIGN);
+            field.getTokenIcon(FOREIGN);
+
+            assertWithMessage("The membership check logs the id it gave up on")
+                    .that(membership.messages()).contains("Container rejected "
+                            + "the token id " + FOREIGN
+                            + "; treating it as not contained");
+            assertWithMessage("So does the lookup behind caption and icon")
+                    .that(lookup.messages()).contains("Container rejected "
+                            + "the token id " + FOREIGN
+                            + "; treating it as not contained");
+        }
+    }
+
+    /**
+     * Captures one logger's {@code FINE} records for the duration of a test.
+     * The messages are built by a supplier, so nothing evaluates them unless
+     * the level is actually enabled.
+     */
+    private static final class RecordedLog extends Handler
+            implements AutoCloseable {
+
+        private final Logger logger;
+        private final Level previousLevel;
+        private final boolean previousUseParentHandlers;
+        private final List<String> messages = new ArrayList<>();
+
+        private RecordedLog(Logger logger) {
+            this.logger = logger;
+            this.previousLevel = logger.getLevel();
+            this.previousUseParentHandlers = logger.getUseParentHandlers();
+        }
+
+        static RecordedLog on(Class<?> loggingClass) {
+            RecordedLog recorded = new RecordedLog(
+                    Logger.getLogger(loggingClass.getName()));
+            recorded.logger.setLevel(Level.FINE);
+            recorded.logger.setUseParentHandlers(false);
+            recorded.logger.addHandler(recorded);
+            return recorded;
+        }
+
+        List<String> messages() {
+            return messages;
+        }
+
+        @Override
+        public void publish(LogRecord record) {
+            messages.add(record.getMessage());
+        }
+
+        @Override
+        public void flush() {
+            // Nothing is buffered.
+        }
+
+        @Override
+        public void close() {
+            logger.removeHandler(this);
+            logger.setLevel(previousLevel);
+            logger.setUseParentHandlers(previousUseParentHandlers);
+        }
     }
 
     @Test
