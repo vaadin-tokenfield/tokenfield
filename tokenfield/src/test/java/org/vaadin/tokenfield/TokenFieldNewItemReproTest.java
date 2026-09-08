@@ -1,0 +1,185 @@
+package org.vaadin.tokenfield;
+
+import com.vaadin.ui.AbstractSelect.NewItemHandler;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Reproduction tests for issues #02 and #09 in the new-item / rememberToken flow.
+ *
+ * <p>Both tests are expected to FAIL against the current (buggy) code.  They are
+ * kept enabled so that CI surfaces the regressions and so that a passing run
+ * after the fix provides clear confirmation that both issues are resolved.</p>
+ */
+class TokenFieldNewItemReproTest {
+
+    private TestTokenField field;
+
+    @BeforeEach
+    void setup() {
+        field = new TestTokenField();
+    }
+
+    // -----------------------------------------------------------------------
+    // Issue #02 — rememberToken stores item under caption key instead of id
+    //
+    // Current buggy code (TokenField.java ~line 276):
+    //   cb.addItem(getTokenCaption(tokenId))   ← uses caption as the item key
+    //   cb.getContainerProperty(tokenId, ...) ← then looks up by tokenId → null → NPE
+    //
+    // Expected behaviour: the item must be stored under tokenId as the key.
+    // -----------------------------------------------------------------------
+
+    /**
+     * Repro for issue #02.
+     *
+     * <p>Setup: the ComboBox container already has the "label" property
+     * registered and item {@code "id-123"} exists with label {@code "Pretty Name"}.
+     * {@code setTokenCaptionPropertyId("label")} is set so that
+     * {@code getTokenCaption("id-123")} returns {@code "Pretty Name"} (not the id).
+     *
+     * <p>When {@code rememberToken("id-123")} is called (e.g., because the user
+     * re-selects a token that is already known to the field), the buggy code does:
+     * <ol>
+     *   <li>{@code cb.addItem("Pretty Name")} — adds a NEW item whose key is the
+     *       caption string {@code "Pretty Name"}, not the token id.</li>
+     *   <li>{@code cb.getContainerProperty("id-123", "label").setValue("id-123")}
+     *       — overwrites the original item's label with the raw id string.</li>
+     * </ol>
+     *
+     * <p>Observable failure modes (either is sufficient to mark the test as
+     * failing, proving the bug):
+     * <ul>
+     *   <li>A spurious item keyed {@code "Pretty Name"} appears in the container.</li>
+     *   <li>The original item's "label" property is overwritten with the id value.</li>
+     * </ul></p>
+     *
+     * <p>After the fix ({@code cb.addItem(tokenId)} + set property to caption),
+     * no spurious item is created and the label retains the correct caption.</p>
+     */
+    @Test
+    void rememberToken_withCaptionPropertyId_storesItemUnderTokenId() {
+        TokenComboBox cb = field.getComboBox();
+
+        // Register the "label" property on the container.
+        cb.addContainerProperty("label", String.class, "");
+
+        // Add item "id-123" with a caption that differs from its id.
+        cb.addItem("id-123");
+        cb.getContainerProperty("id-123", "label").setValue("Pretty Name");
+
+        // Tell TokenField to use the "label" property as caption source.
+        field.setTokenCaptionPropertyId("label");
+
+        // Sanity-check: getTokenCaption must return the property value, not the id.
+        assertEquals("Pretty Name", field.getTokenCaption("id-123"),
+                "Precondition: getTokenCaption must return the label property value");
+
+        // Record the container size before the call.
+        int sizeBefore = cb.getItemIds().size();
+
+        // Call rememberToken — this is the method under test.
+        // The buggy implementation calls cb.addItem("Pretty Name"), creating a
+        // spurious second item in the container, and then corrupts the original
+        // item's label by setting it to the raw id string.
+        field.callRememberToken("id-123");
+
+        // Post-condition 1: no extra item must have been created.
+        // Bug: cb.addItem("Pretty Name") adds a ghost item → size increases.
+        assertEquals(sizeBefore, cb.getItemIds().size(),
+                "rememberToken must not add a spurious ghost item keyed by the caption");
+
+        // Post-condition 2: no item must be keyed by the caption string.
+        assertFalse(cb.containsId("Pretty Name"),
+                "Container must NOT contain an item whose id equals the caption string");
+
+        // Post-condition 3: the label property must remain "Pretty Name", not be
+        // overwritten with the raw token id.
+        // Bug: current code sets the property to tokenId ("id-123"), not the caption.
+        assertEquals("Pretty Name",
+                cb.getContainerProperty("id-123", "label").getValue(),
+                "The 'label' property must retain its original caption value, not be overwritten with the tokenId");
+    }
+
+    // -----------------------------------------------------------------------
+    // Issue #09 — NewItemHandler does not call cb.setValue(null) to clear input
+    //
+    // Current buggy code (TokenField.java ~line 258-267):
+    //   public void addNewItem(String tokenId) {
+    //       ...
+    //       cb.focus();   ← cb.setValue(null) is missing here
+    //   }
+    //
+    // The ValueChangeListener (existing-item path) DOES call cb.setValue(null).
+    // Expected behaviour: after addNewItem, cb.getValue() must be null.
+    // -----------------------------------------------------------------------
+
+    /**
+     * Repro for issue #09.
+     *
+     * <p>After the {@link NewItemHandler#addNewItem(String)} method completes,
+     * the ComboBox value should be {@code null} (input cleared), matching the
+     * behaviour of the existing-item {@code ValueChangeListener} path.
+     *
+     * <p>To exercise only the {@code NewItemHandler} logic we retrieve the
+     * handler that was registered in the {@link TokenField} constructor and
+     * invoke it directly.  We first add a pre-existing item to the container
+     * and call {@code cb.setValue} on it to simulate a "dirty" field state,
+     * then invoke {@code addNewItem} for a different token.  Because the
+     * {@code ValueChangeListener} fires when an existing item is set, the
+     * listener already clears the value on that selection; so we verify the
+     * state immediately after only the {@code NewItemHandler} call.</p>
+     *
+     * <p>Strategy: add item "existing" to the container; set cb value directly
+     * via an internal state trick that does NOT fire the ValueChangeListener —
+     * we use reflection to set the internal field value, bypassing the listener.
+     * Alternatively (and more robustly), we observe that the handler is supposed
+     * to set value to null regardless of prior state.  We first put the
+     * ComboBox into a state where its value is a known non-null by temporarily
+     * bypassing the listener, then call addNewItem and assert null.</p>
+     *
+     * <p>Simpler observable contract: if we call addNewItem on a fresh field
+     * (value is already null), the bug means the handler never calls
+     * {@code setValue(null)}.  We can detect this by checking that the
+     * ValueChangeListener was NOT triggered by the new-item path — or simply
+     * verify that the value stays null when it should.  The most direct
+     * observable is: set value to a non-null by direct field access (reflection)
+     * so the listener is bypassed, then call addNewItem, then assert null.</p>
+     */
+    @Test
+    void addNewItem_clearsComboBoxValue() throws Exception {
+        TokenComboBox cb = field.getComboBox();
+
+        // Add an item so we have a valid value to set without triggering the
+        // "new item" path of the listener.
+        cb.addItem("pre-existing");
+
+        // Use reflection to set the internal value of the AbstractField directly,
+        // bypassing the ValueChangeListener (which would immediately clear the
+        // value itself and mask the bug).
+        java.lang.reflect.Field valueField =
+                com.vaadin.ui.AbstractField.class.getDeclaredField("value");
+        valueField.setAccessible(true);
+        valueField.set(cb, "pre-existing");
+
+        // Confirm the precondition: cb now reports a non-null value.
+        assertNotNull(cb.getValue(),
+                "Precondition: cb value must be non-null before addNewItem is called");
+
+        // Retrieve the NewItemHandler registered in the TokenField constructor
+        // and invoke it as the Vaadin framework would when the user types a new
+        // token and presses Enter.
+        NewItemHandler handler = cb.getNewItemHandler();
+        assertNotNull(handler, "NewItemHandler must be registered");
+        handler.addNewItem("brand-new-token");
+
+        // Post-condition: after addNewItem, the ComboBox value must be null
+        // (input cleared), mirroring what the ValueChangeListener does.
+        // The current code is missing cb.setValue(null) in addNewItem, so this
+        // assertion will fail, proving the bug.
+        assertNull(cb.getValue(),
+                "ComboBox value must be null after addNewItem (input should be cleared)");
+    }
+}
