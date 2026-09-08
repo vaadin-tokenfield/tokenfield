@@ -58,8 +58,11 @@ import com.vaadin.ui.Window;
  * <li>the raw address {@code String} the user typed, for one that is not.</li>
  * </ul>
  * <p>
- * The overrides below all exist to keep the second kind away from the
- * container. {@code TokenField} resolves a caption by asking the container
+ * The {@code NewTokenHandler} turns typed text into the first kind where it
+ * can (a name or address already in the book, or the "Add to contacts"
+ * button); "Don't add" leaves the second kind as a token of this field only.
+ * The caption override below keeps the second kind away from the container:
+ * {@code TokenField} resolves a caption by asking the container
  * {@code containsId(tokenId)} first, and a {@code JPAContainer} asked whether
  * it contains {@code "new@example.com"} does not answer false — it fails
  * trying to convert that {@code String} to a {@code Long}:
@@ -99,7 +102,7 @@ public class JpaAddressBookPanel extends Panel {
         VerticalLayout lo = new VerticalLayout();
         lo.setSpacing(true);
 
-        final TokenField f = new JpaAddressBookField(lo, contacts);
+        final JpaAddressBookField f = new JpaAddressBookField(lo, contacts);
         l.addComponent(f);
         // This would turn on the "fake tekstfield" look:
         f.setStyleName(TokenField.STYLE_TOKENFIELD);
@@ -112,7 +115,18 @@ public class JpaAddressBookPanel extends Panel {
         // container - a JPA query - rather than in memory.
         f.setTokenCaptionPropertyId("name"); // use name in input
         f.setInputPrompt("Enter contact name or new email address");
-        f.setRememberNewTokens(false); // we'll do this via the dialog
+        // Typed text may still name someone in the book; otherwise the "add to
+        // address book" dialog decides. addEntity hands back the entity id.
+        f.setNewTokenHandler(text -> {
+            Long known = JpaContacts.findId(text);
+            if (known != null) {
+                f.addAvoidingDuplicate(known);
+            } else if (f.getValue() != null && f.getValue().contains(text)) {
+                Notification.show(text + " is already added");
+            } else {
+                f.getUI().addWindow(new NewContactWindow(text, f, contacts));
+            }
+        });
 
         // Pre-add the same three the BeanItemContainer panel does: two from the
         // address book, one that is not in it.
@@ -138,45 +152,21 @@ public class JpaAddressBookPanel extends Panel {
         }
 
         /**
-         * True for a token id that names a row in the address book.
-         * <p>
-         * The type test is the whole point: it answers the question
-         * {@code container.containsId(tokenId)} would answer for an in-memory
-         * container, without handing the container an id it cannot hold.
-         * </p>
+         * True for a token id that names a row in the address book. A type
+         * test, because asking the container about an id it cannot hold fails
+         * instead of answering false (see the class comment).
          */
         private boolean isContact(Object tokenId) {
             return tokenId instanceof Long;
         }
 
-        /** dialog if not in 'address book', otherwise just add */
+        /** Picked from the suggestions: a real entity id. */
         @Override
         protected void onTokenInput(Object tokenId) {
-            // Picked from the suggestions: the ComboBox hands over a real id.
-            if (isContact(tokenId)) {
-                addAvoidingDuplicate(tokenId);
-                return;
-            }
-
-            // Typed: the raw text, which may still name someone in the book.
-            String typed = String.valueOf(tokenId);
-            Long known = JpaContacts.findId(typed);
-            if (known != null) {
-                addAvoidingDuplicate(known);
-                return;
-            }
-
-            Set<Object> set = (Set<Object>) getValue();
-            if (set != null && set.contains(typed)) {
-                Notification.show(typed + " is already added");
-                return;
-            }
-            // don't add directly,
-            // show custom "add to address book" dialog
-            getUI().addWindow(new NewContactWindow(typed, this, contacts));
+            addAvoidingDuplicate(tokenId);
         }
 
-        private void addAvoidingDuplicate(Object tokenId) {
+        void addAvoidingDuplicate(Object tokenId) {
             Set<Object> set = (Set<Object>) getValue();
             if (set != null && set.contains(tokenId)) {
                 Notification.show(getTokenCaption(tokenId)
