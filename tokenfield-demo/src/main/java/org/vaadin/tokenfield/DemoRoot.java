@@ -101,31 +101,18 @@ public class DemoRoot extends UI {
                 p.setContent(l);
                 addComponent(p);
 
-                TokenField f = new TokenField() {
-
-                    @Override
-                    protected void onTokenInput(Object tokenId) {
-                        String[] tokens = ((String) tokenId).split(",");
-                        for (String token : tokens) {
-                            token = token.trim();
-                            if (!token.isEmpty()) {
-                                super.onTokenInput(token);
-                            }
+                TokenField f = new TokenField();
+                // Each piece takes the default path: container, then token
+                final TokenField.NewTokenHandler onePiece = f
+                        .getNewTokenHandler();
+                f.setNewTokenHandler(text -> {
+                    for (String token : text.split(",")) {
+                        token = token.trim();
+                        if (!token.isEmpty()) {
+                            onePiece.addNewToken(token);
                         }
                     }
-
-                    @Override
-                    protected void rememberToken(String tokenId) {
-                        String[] tokens = tokenId.split(",");
-                        for (String token : tokens) {
-                            token = token.trim();
-                            if (!token.isEmpty()) {
-                                super.rememberToken(token);
-                            }
-                        }
-                    }
-
-                };
+                });
                 f.setInputPrompt("tag, another, yetanother");
                 l.addComponent(f);
 
@@ -160,27 +147,16 @@ public class DemoRoot extends UI {
 
                     private static final long serialVersionUID = 5530375996928514871L;
 
-                    // dialog if not in 'address book', otherwise just add
+                    // picked from the suggestions, or handed on by the
+                    // NewTokenHandler below: add unless already there
                     @Override
                     protected void onTokenInput(Object tokenId) {
                         Set<Object> set = (Set<Object>) getValue();
-                        Contact c = new Contact("", tokenId.toString());
-                        if (set != null && set.contains(c)) {
-                            // duplicate
+                        if (set != null && set.contains(tokenId)) {
                             Notification.show(getTokenCaption(tokenId)
                                     + " is already added");
                         } else {
-                            if (!cb.containsId(c)) {
-                                // don't add directly,
-                                // show custom "add to address book" dialog
-                                getUI().addWindow(
-                                        new EditContactWindow(tokenId
-                                                .toString(), this));
-
-                            } else {
-                                // it's in the 'address book', just add
-                                addToken(tokenId);
-                            }
+                            addToken(tokenId);
                         }
                     }
 
@@ -224,7 +200,19 @@ public class DemoRoot extends UI {
                 f.setFilteringMode(FilteringMode.CONTAINS); // suggest
                 f.setTokenCaptionPropertyId("name"); // use name in input
                 f.setInputPrompt("Enter contact name or new email address");
-                f.setRememberNewTokens(false); // we'll do this via the dialog
+                // Typed text is an address: in the book already -> plain add;
+                // otherwise the "add to address book" dialog decides.
+                f.setNewTokenHandler(text -> {
+                    Contact c = new Contact("", text);
+                    Set<?> set = f.getValue();
+                    if (set != null && set.contains(c)) {
+                        Notification.show(text + " is already added");
+                    } else if (tokens.containsId(c)) {
+                        f.addToken(c);
+                    } else {
+                        f.getUI().addWindow(new EditContactWindow(text, f));
+                    }
+                });
                 // Pre-add a few:
                 Iterator it = f.getTokenIds().iterator();
                 f.addToken(it.next());

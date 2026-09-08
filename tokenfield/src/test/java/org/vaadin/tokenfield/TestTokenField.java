@@ -1,6 +1,5 @@
 package org.vaadin.tokenfield;
 
-import com.vaadin.data.Property;
 import com.vaadin.server.ServerRpcManager;
 import com.vaadin.server.ServerRpcMethodInvocation;
 import com.vaadin.shared.MouseEventDetails;
@@ -66,18 +65,13 @@ public class TestTokenField extends TokenField {
     }
 
     /**
-     * Simulates the user typing a new (not-in-container) token and submitting it.
-     * Mirrors the {@link com.vaadin.ui.AbstractSelect.NewItemHandler} logic
-     * wired in the {@link TokenField} constructor.
+     * Simulates the user typing text that matches no suggestion and submitting
+     * it: the {@link com.vaadin.ui.AbstractSelect.NewItemHandler} the
+     * {@link TokenField} constructor installs on the ComboBox, which is what
+     * {@code ComboBox.changeVariables} calls for the {@code newitem} variable.
      */
     public void simulateNewItemInput(String text) {
-        if (isReadOnly()) {
-            throw new Property.ReadOnlyException();
-        }
-        onTokenInput(text);
-        if (rememberNewTokens) {
-            rememberToken(text);
-        }
+        cb.getNewItemHandler().addNewItem(text);
     }
 
     /**

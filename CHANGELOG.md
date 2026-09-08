@@ -20,11 +20,21 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   reconfigured, so overrides must be idempotent.
 - In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
   itself instead of being left blank — a documented deviation from `AbstractSelect`.
+- **Breaking:** text the user types reaches the container *before* `onTokenInput` (the order of
+  `AbstractSelect.DefaultNewItemHandler`), so `onTokenInput` can no longer tell a new token from
+  the container; the `NewTokenHandler` is the place for that.
+- **Breaking:** `rememberToken(String)` adds the new item under the typed text as its id rather
+  than under its caption, which is also the id the caption property is written under. It no longer
+  throws when the two differ ([#39](https://github.com/vaadin-tokenfield/tokenfield/issues/39)).
 
 ### Added
 
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
+- `TokenField.NewTokenHandler` and `setNewTokenHandler`, the counterpart of
+  `ComboBox.setNewItemHandler`: how text the user typed becomes a token. Needed for a container
+  that names or validates its items itself (`JPAContainer`, `BeanItemContainer`); the demo's
+  address-book panels show it.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.

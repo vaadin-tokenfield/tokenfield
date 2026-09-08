@@ -37,6 +37,11 @@ Server side (`tokenfield/src/main/java/org/vaadin/tokenfield`):
   `removeToken`, `onTokenDelete` → `onTokenClick`, and `configureTokenButton`. The last one is
   re-run on every reconfiguration (`refreshTokens()`), so overrides must be idempotent:
   `setStyleName` not `addStyleName`, no listener registration.
+- Typed text that matches no suggestion goes to the `NewTokenHandler` (`setNewTokenHandler`,
+  mirrors `ComboBox.setNewItemHandler`). `DefaultNewTokenHandler` does `rememberToken` (container
+  first, item under the typed text) and then `onTokenInput(text)`. A container that assigns its
+  own ids needs a custom handler; the value stays the source of truth, the container supplies
+  suggestions and captions, and a token the container does not hold is a supported case.
 - Captions/icons are *derived* from the ComboBox's `ItemCaptionMode`/container each time, never
   cached. `getTokenCaption` deliberately deviates from `AbstractSelect` for tokens outside the
   container (see its Javadoc).
