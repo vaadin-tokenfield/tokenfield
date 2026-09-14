@@ -36,6 +36,9 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   `AbstractSelect#getItemIcon`.
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
+- `TokenField.initTokenCaption(String)` and `initTokenIcon(String)`, overridable hooks for what
+  `rememberToken(String)` writes into the caption/icon property of a newly entered item. Default
+  behavior is unchanged from before this release: the typed text as caption, no icon.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
