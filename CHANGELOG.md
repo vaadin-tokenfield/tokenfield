@@ -31,6 +31,16 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - `TokenField.initTokenCaption(String)` and `initTokenIcon(String)`, overridable hooks for what
   `rememberToken(String)` writes into the caption/icon property of a newly entered item. Default
   behavior is unchanged from before this release: the typed text as caption, no icon.
+- `TokenField.NewTokenHandler` and `setNewTokenHandler`, the counterpart of
+  `ComboBox.setNewItemHandler`: how text the user typed becomes a token. Needed for a container
+  that names or validates its items itself (`JPAContainer`, `BeanItemContainer`); the demo's
+  address-book panels show it.
+- Documented and demoed the workaround for a container keyed by something other than the token id
+  (e.g. `JPAContainer` by `Long`): a `NewTokenHandler` plus a `getTokenCaption`/`getTokenIcon`
+  override, since the component itself cannot resolve such a token without asking the container
+  about an id it cannot hold. Out-of-the-box support for such containers is not a goal
+  ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24), closed as won't-fix) — see the
+  JPA address-book demo panel.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
