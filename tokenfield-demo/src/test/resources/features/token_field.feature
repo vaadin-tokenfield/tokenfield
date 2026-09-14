@@ -3,7 +3,7 @@ Feature: TokenField everyday usage
   I want to add, review and remove tokens with the keyboard or the mouse
   So that I can build up a list of values without leaving the field
 
-  # Each scenario below opens one of the demo's six example panels, chosen
+  # Each scenario below opens one of the demo's seven example panels, chosen
   # by a business-language name rather than the demo's own on-screen Panel
   # caption (see DemoSteps#panelIndexFor):
   #   "Basic"                         -> "Basic"
@@ -12,9 +12,15 @@ Feature: TokenField everyday usage
   #   "Data binding and buffering"    -> "Data binding and buffering"
   #   "Layout and insert position"    -> "Layout and InsertPosition"
   #   "JPA address book"              -> "Full featured example, JPAContainer"
+  #   "Lookup only"                   -> "Lookup only"
+  #
+  # The panels between them cover the field's three usage modes: Writeable
+  # (Basic, Comma separated, both address books - new tokens allowed and
+  # remembered), Oblivious (the address books' "Don't add" path - a token of
+  # the field only) and Lookup ("Lookup only" - new tokens not allowed).
 
-  Scenario: The demo shows all six examples with their inputs ready
-    Then the demo page shows all six example panels, each with its own input
+  Scenario: The demo shows all seven examples with their inputs ready
+    Then the demo page shows all seven example panels, each with its own input
 
   # ---------------------------------------------------------------------
   # Basic — plain TokenField, default settings.
@@ -146,6 +152,9 @@ Feature: TokenField everyday usage
       | Address book     |
       | JPA address book |
 
+  # Oblivious mode at browser level: the declined address is a token of this
+  # field only. (Its absence from the container is not observable here: the
+  # suggestions show the name property, so the unit suite pins that part.)
   Scenario Outline: Declining to add a new contact still keeps it as a token for this field
     Given the "<example>" example
     When I type "new@example.com" and press Enter
@@ -321,3 +330,33 @@ Feature: TokenField everyday usage
     When I type "Nathan Einstein" and press Enter
     Then a token chip labeled "Nathan Einstein <nathan.einstein@example.com>" appears in the field
     And no confirmation window is shown
+
+  # ---------------------------------------------------------------------
+  # Lookup only — new tokens are not allowed (setNewTokensAllowed(false)):
+  # the field is a multi-pick over a fixed list of countries. Typed text
+  # that matches no suggestion is dropped; RememberNewTokens has no effect.
+  # ---------------------------------------------------------------------
+
+  Scenario: Picking a suggestion adds it as a token
+    Given the "Lookup only" example
+    When I type "Fin" and pick the matching suggestion
+    Then a token chip labeled "Finland" appears in the field
+
+  Scenario: Typing something that is not in the list adds nothing
+    Given the "Lookup only" example
+    When I type "Atlantis" and press Enter
+    Then the field contains no tokens
+    And "Atlantis" is not among the suggestions for "an"
+
+  Scenario: Typing part of a name filters the suggestions to matches
+    Given the "Lookup only" example
+    When I start typing "an"
+    Then all visible suggestions contain "an"
+
+  Scenario: Backspace on an empty input removes the last picked token
+    Given the "Lookup only" example
+    When I type "Fin" and pick the matching suggestion
+    And I type "Swe" and pick the matching suggestion
+    And the input is empty and I press Backspace
+    Then the "Sweden" token is removed from the field
+    And the "Finland" token remains

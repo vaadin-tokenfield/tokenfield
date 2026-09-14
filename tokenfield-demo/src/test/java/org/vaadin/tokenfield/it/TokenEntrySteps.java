@@ -92,6 +92,25 @@ public class TokenEntrySteps {
                 .filter(new Locator.FilterOptions().setHasText(text))).hasCount(1);
     }
 
+    @Then("the field contains no tokens")
+    public void noTokens() {
+        assertThat(world.demo().chips(world.panel())).hasCount(0);
+    }
+
+    /**
+     * Negative check on the suggestion list, raced against the async filter
+     * query by first waiting for a filter that does have matches.
+     */
+    @Then("{string} is not among the suggestions for {string}")
+    public void notAmongSuggestions(String text, String filter) {
+        world.demo().input(world.panel()).fill(""); // whatever the last step left
+        world.demo().type(world.panel(), filter);
+        assertThat(world.demo().suggestionPopup()).isVisible();
+        assertThat(world.demo().suggestions()).not().hasCount(0);
+        assertThat(world.demo().suggestions()
+                .filter(new Locator.FilterOptions().setHasText(text))).hasCount(0);
+    }
+
     @Then("the input is empty again, ready for the next value")
     public void inputIsEmpty() {
         assertThat(world.demo().input(world.panel())).hasValue("");
