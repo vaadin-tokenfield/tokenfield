@@ -274,6 +274,42 @@ class TokenFieldCaptionDerivationTest {
     }
 
     // ------------------------------------------------------------------
+    // Null tokenId (org.jspecify.annotations.Nullable on getTokenCaption)
+    // ------------------------------------------------------------------
+
+    /**
+     * Under the default mode, {@code getTokenCaption(null)} delegates to
+     * {@link com.vaadin.ui.AbstractSelect#getItemCaption(Object)}, which
+     * answers null for a null itemId rather than its usual "every item has a
+     * caption" fallback.
+     */
+    @Test
+    void nullTokenIdYieldsNullCaptionUnderTheDefaultMode() {
+        TestTokenField field = new TestTokenField();
+
+        assertWithMessage("getTokenCaption(null) must be null under"
+                + " EXPLICIT_DEFAULTS_ID, the default mode")
+                .that(field.getTokenCaption(null)).isNull();
+    }
+
+    /**
+     * ITEM and PROPERTY name a token the container does not hold after the
+     * tokenId itself (see {@link #containerBackedModesNameATokenTheContainerDoesNotHold}),
+     * and a null tokenId is such a token - so here the stand-in is the string
+     * {@code "null"}, not an actual null.
+     */
+    @ParameterizedTest
+    @EnumSource(value = ItemCaptionMode.class, names = { "ITEM", "PROPERTY" })
+    void nullTokenIdIsStringifiedUnderContainerBackedModes(
+            ItemCaptionMode mode) {
+        TestTokenField field = new TestTokenField();
+        field.setTokenCaptionMode(mode);
+
+        assertWithMessage(mode + " must stand in \"null\", not null itself")
+                .that(field.getTokenCaption(null)).isEqualTo("null");
+    }
+
+    // ------------------------------------------------------------------
     // Following the data source
     // ------------------------------------------------------------------
 

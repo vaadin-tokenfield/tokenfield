@@ -54,6 +54,8 @@
         <truth.version>1.4.5</truth.version>
         <playwright.version>1.62.0</playwright.version>
         <cucumber.version>7.34.6</cucumber.version>
+        <!-- Nullness annotations; org.vaadin.tokenfield.client must never depend on this, see AGENTS.md -->
+        <jspecify.version>1.0.0</jspecify.version>
 
         <maven.deploy.skip>true</maven.deploy.skip>
 
@@ -230,6 +232,15 @@
         </dependencies>
     </dependencyManagement>
 
+    <!-- Inherited by every module: nullness annotations for the server-side API. -->
+    <dependencies>
+        <dependency>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>${jspecify.version}</version>
+        </dependency>
+    </dependencies>
+
     <build>
         <pluginManagement>
             <plugins>
@@ -314,6 +325,11 @@
                     <version>0.11.0</version>
                     <extensions>true</extensions>
                 </plugin>
+                <plugin>
+                    <groupId>com.rudikershaw.gitbuildhook</groupId>
+                    <artifactId>git-build-hook-maven-plugin</artifactId>
+                    <version>3.6.0</version>
+                </plugin>
 
                 <plugin>
                     <groupId>com.github.spotbugs</groupId>
@@ -371,6 +387,29 @@
                                 </requireMavenVersion>
                             </rules>
                         </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                husky-equivalent: points every checkout at .githooks/ on the first
+                build, so the JSpecify client-package guard (docs/code-quality.md)
+                needs no manual `git config` step. Root module only - the reactor
+                runs this once regardless of which module is built.
+            -->
+            <plugin>
+                <groupId>com.rudikershaw.gitbuildhook</groupId>
+                <artifactId>git-build-hook-maven-plugin</artifactId>
+                <configuration>
+                    <gitConfig>
+                        <core.hooksPath>.githooks</core.hooksPath>
+                    </gitConfig>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>configure</goal>
+                        </goals>
                     </execution>
                 </executions>
             </plugin>

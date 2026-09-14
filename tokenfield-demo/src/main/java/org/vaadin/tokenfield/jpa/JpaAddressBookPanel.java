@@ -18,6 +18,7 @@ package org.vaadin.tokenfield.jpa;
 import java.util.Arrays;
 import java.util.Set;
 
+import org.jspecify.annotations.Nullable;
 import org.vaadin.tokenfield.Contact;
 import org.vaadin.tokenfield.DemoRoot;
 import org.vaadin.tokenfield.TokenField;
@@ -323,12 +324,12 @@ public class JpaAddressBookPanel extends Panel {
             hz.setComponentAlignment(add, Alignment.MIDDLE_RIGHT);
         }
 
-        private static String addressOf(Contact contact) {
+        private static @Nullable String addressOf(Contact contact) {
             return isBlank(contact.getEmail()) ? contact.getName()
                     : contact.getEmail();
         }
 
-        private static boolean isBlank(String s) {
+        private static boolean isBlank(@Nullable String s) {
             return s == null || s.isEmpty();
         }
     }

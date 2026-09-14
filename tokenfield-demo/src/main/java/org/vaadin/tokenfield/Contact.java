@@ -17,6 +17,8 @@ package org.vaadin.tokenfield;
 
 import java.io.Serializable;
 
+import org.jspecify.annotations.Nullable;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -53,48 +55,48 @@ public class Contact implements Serializable {
      */
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private Long id;
+    private @Nullable Long id;
 
-    private String name;
+    private @Nullable String name;
 
-    private String email;
+    private @Nullable String email;
 
     public Contact() {
         // JPA
     }
 
-    public Contact(String name, String email) {
+    public Contact(@Nullable String name, @Nullable String email) {
         this.name = name;
         this.email = email;
     }
 
-    public Long getId() {
+    public @Nullable Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(@Nullable Long id) {
         this.id = id;
     }
 
-    public String getName() {
+    public @Nullable String getName() {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(@Nullable String name) {
         this.name = name;
     }
 
-    public String getEmail() {
+    public @Nullable String getEmail() {
         return email;
     }
 
-    public void setEmail(String email) {
+    public void setEmail(@Nullable String email) {
         this.email = email;
     }
 
     @Override
     public String toString() {
-        return email;
+        return email == null ? "" : email;
     }
 
     /**
@@ -103,7 +105,7 @@ public class Contact implements Serializable {
      * of them equal to each other.
      */
     @Override
-    public boolean equals(Object obj) {
+    public boolean equals(@Nullable Object obj) {
         if (obj instanceof Contact) {
             String other = ((Contact) obj).getEmail();
             return email == null ? other == null : email.equals(other);
