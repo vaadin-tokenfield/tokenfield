@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
@@ -300,14 +301,75 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
+    /**
+     * Puts text the user typed into the container, so that it is suggested the
+     * next time: an item under the text as its id. Mirrors the behavior of
+     * {@link AbstractSelect.DefaultNewItemHandler}, which always writes the
+     * typed text verbatim and has no icon of its own. Override
+     * {@link #initTokenCaption(String)} or {@link #initTokenIcon(String)} for a
+     * computed or looked-up default instead.
+     * <p>
+     * <strong>Warning:</strong> whatever the container throws for
+     * {@link Container#addItem(Object)} propagates.
+     *
+     * @param tokenId
+     *            the text the user typed
+     */
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
+        Item item = cb.addItem(tokenId);
+        if (item != null) {
+            setTokenCaptionProperty(item, initTokenCaption(tokenId));
+            setTokenIconProperty(item, initTokenIcon(tokenId));
+        }
+    }
 
-            }
+    /**
+     * The caption to write into the caption property for a newly entered
+     * item. Override for a computed or looked-up default; a caption preset
+     * via {@link #setTokenCaption(Object, String)} still shows up at display
+     * time regardless of what this writes ({@link #getTokenCaption(Object)}).
+     *
+     * @param tokenId the entered token text / token id
+     * @return the caption to set; the typed text itself by default
+     */
+    protected String initTokenCaption(String tokenId) {
+        return tokenId;
+    }
+
+    /**
+     * The icon to write into the icon property for a newly entered item.
+     * Override for a computed or looked-up default; an icon preset via
+     * {@link #setTokenIcon(Object, Resource)} still shows up at display time
+     * regardless of what this writes ({@link #getTokenIcon(Object)}).
+     *
+     * @param tokenId the entered token text / token id
+     * @return the icon to set; {@code null} by default
+     */
+    protected Resource initTokenIcon(String tokenId) {
+        return null;
+    }
+
+    /**
+     * Writes the text the user typed into the caption property of the item that
+     * was created for it, if a caption property is in use and the item has one.
+     */
+    private void setTokenCaptionProperty(Item item, String caption) {
+        setItemProperty(item, getTokenCaptionPropertyId(), caption);
+    }
+
+    private void setTokenIconProperty(Item item, Resource icon) {
+        setItemProperty(item, getTokenIconPropertyId(), icon);
+    }
+
+    private static <T> void setItemProperty(Item token, Object propertyId, T value) {
+        if (token == null || propertyId == null) {
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        Property<T> caption = token.getItemProperty(propertyId);
+        if (caption != null) {
+            caption.setValue(value);
         }
     }
 
