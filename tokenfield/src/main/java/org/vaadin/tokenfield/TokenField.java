@@ -26,6 +26,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import com.vaadin.data.Container;
+import com.vaadin.data.Item;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
 import com.vaadin.shared.ui.combobox.FilteringMode;
@@ -172,6 +173,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
         private static final long serialVersionUID = -5550767105896319355L;
 
+        @Override
         protected void onDelete() {
             if (!buttons.isEmpty()) {
                 Object[] keys = buttons.keySet().toArray();
@@ -282,8 +284,8 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
             private static final long serialVersionUID = 4370326413130922134L;
 
-            public void valueChange(
-                    com.vaadin.data.Property.ValueChangeEvent event) {
+            @Override
+            public void valueChange(Property.ValueChangeEvent event) {
                 final Object tokenId = event.getProperty().getValue();
                 if (tokenId != null) {
                     onTokenInput(tokenId);
@@ -300,6 +302,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             // This is essentially what the ComboBox.DefaultNewItemHandler does,
             // but we'll first delegate adding token button, then add to
             // container.
+            @Override
             public void addNewItem(@NonNull String tokenId) {
                 if (isReadOnly()) {
                     throw new Property.ReadOnlyException();
@@ -317,16 +320,75 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    /**
+     * Puts text the user typed into the container, so that it is suggested the
+     * next time: an item under the text as its id. Mirrors the behavior of
+     * {@link AbstractSelect.DefaultNewItemHandler}, which always writes the
+     * typed text verbatim and has no icon of its own. Override
+     * {@link #initTokenCaption(String)} or {@link #initTokenIcon(String)} for a
+     * computed or looked-up default instead.
+     * <p>
+     * <strong>Warning:</strong> whatever the container throws for
+     * {@link Container#addItem(Object)} propagates.
+     *
+     * @param tokenId
+     *            the text the user typed
+     */
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(tokenId) != null) {
-            // Sets the caption property, if used
-            if (getTokenCaptionPropertyId() != null) {
-                Property property = cb.getContainerProperty(tokenId, getTokenCaptionPropertyId());
-                if (property != null) {
-                    property.setValue(tokenId);
-                }
-            }
+        Item item = cb.addItem(tokenId);
+        if (item != null) {
+            setTokenCaptionProperty(item, initTokenCaption(tokenId));
+            setTokenIconProperty(item, initTokenIcon(tokenId));
+        }
+    }
+
+    /**
+     * The caption to write into the caption property for a newly entered
+     * item. Override for a computed or looked-up default; a caption preset
+     * via {@link #setTokenCaption(Object, String)} still shows up at display
+     * time regardless of what this writes ({@link #getTokenCaption(Object)}).
+     *
+     * @param tokenId the entered token text / token id
+     * @return the caption to set; the typed text itself by default
+     */
+    protected @Nullable String initTokenCaption(String tokenId) {
+        return tokenId;
+    }
+
+    /**
+     * The icon to write into the icon property for a newly entered item.
+     * Override for a computed or looked-up default; an icon preset via
+     * {@link #setTokenIcon(Object, Resource)} still shows up at display time
+     * regardless of what this writes ({@link #getTokenIcon(Object)}).
+     *
+     * @param tokenId the entered token text / token id
+     * @return the icon to set; {@code null} by default
+     */
+    protected @Nullable Resource initTokenIcon(String tokenId) {
+        return null;
+    }
+
+    /**
+     * Writes the text the user typed into the caption property of the item that
+     * was created for it, if a caption property is in use and the item has one.
+     */
+    private void setTokenCaptionProperty(Item item, @Nullable String caption) {
+        setItemProperty(item, getTokenCaptionPropertyId(), caption);
+    }
+
+    private void setTokenIconProperty(Item item, @Nullable Resource icon) {
+        setItemProperty(item, getTokenIconPropertyId(), icon);
+    }
+
+    private static <T> void setItemProperty(Item token, @Nullable Object propertyId, @Nullable T value) {
+        if (propertyId == null) {
+            return;
+        }
+
+        @SuppressWarnings("unchecked")
+        Property<T> caption = token.getItemProperty(propertyId);
+        if (caption != null) {
+            caption.setValue(value);
         }
     }
 
@@ -457,11 +519,13 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         b.addClickListener(new Button.ClickListener() {
             private static final long serialVersionUID = -1943432188848347317L;
 
-            /*
+            /**
              * Button#click RPC ignores read-only, so guard here (like
-             * CheckBox#setChecked) rather than in onTokenClick, which a
+             * {@link com.vaadin.shared.ui.checkbox.CheckBoxServerRpc#setChecked(boolean, com.vaadin.shared.MouseEventDetails)})
+             * rather than in onTokenClick, which a
              * subclass could override and lose the guard.
              */
+            @Override
             public void buttonClick(ClickEvent event) {
                 if (isReadOnly()) {
                     return;
@@ -702,6 +766,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the token container data source, or {@code null} to fall
      *            back to an empty {@link com.vaadin.data.util.IndexedContainer}
      */
+    @Override
     public void setContainerDataSource(@Nullable Container c) {
         cb.setContainerDataSource(c);
         // AbstractSelect#setContainerDataSource only marks itself dirty; the
@@ -716,6 +781,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @see ComboBox#getContainerDataSource()
      * @return the container data source currently used for the input box
      */
+    @Override
     public Container getContainerDataSource() {
         return cb.getContainerDataSource();
     }

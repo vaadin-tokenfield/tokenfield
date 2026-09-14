@@ -1,15 +1,30 @@
 package org.vaadin.tokenfield;
 
+import com.vaadin.data.util.IndexedContainer;
+import com.vaadin.server.Resource;
+import com.vaadin.server.ThemeResource;
+import com.vaadin.ui.AbstractSelect.ItemCaptionMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.truth.Truth.assertThat;
-
-import com.vaadin.data.util.IndexedContainer;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Tests {@link TokenField#rememberToken(String)} via the NewItemHandler path
- * ({@link TestTokenField#simulateNewItemInput(String)}).
+ * ({@link TestTokenField#simulateNewItemInput(String)}): the Writeable mode
+ * over a container that takes the typed text as the item id.
+ *
+ * <p>Reference: {@code AbstractSelect.DefaultNewItemHandler} adds the item
+ * under the typed text and writes the caption property under that same key,
+ * whatever the caption mode says, and never touches an icon (issue #39).
+ * {@link TokenField#rememberToken(String)} follows that exactly: a caption or
+ * icon preset via {@link TokenField#setTokenCaption} / {@link
+ * TokenField#setTokenIcon} is ignored here and only applied later, at display
+ * time, through {@link TokenField#getTokenCaption(Object)} /
+ * {@link TokenField#getTokenIcon(Object)}. Override
+ * {@link TokenField#initTokenCaption(String)} / {@link
+ * TokenField#initTokenIcon(String)} to write something else instead.</p>
  */
 class TokenFieldRememberTokenTest {
 
@@ -41,21 +56,104 @@ class TokenFieldRememberTokenTest {
         assertThat(field.getComboBox().containsId("volatile")).isFalse();
     }
 
-    /**
-     * The new item is added under the typed text itself, so the caption
-     * property write - keyed by that same text - always finds the item it
-     * just created.
-     */
     @Test
-    void captionPropertyIsSetUnderTheTypedTextAsTheItemId() {
-        IndexedContainer c = new IndexedContainer();
-        c.addContainerProperty("name", String.class, null);
-        field.setContainerDataSource(c);
+    void theCaptionPropertyIsFilledUnderTheIdTheItemWasAddedWith() {
+        IndexedContainer c = withNameProperty();
         field.setTokenCaptionPropertyId("name");
 
         field.simulateNewItemInput("tag1");
 
-        assertThat(c.getContainerProperty("tag1", "name").getValue())
+        assertThat(field.getComboBox().containsId("tag1")).isTrue();
+        assertThat(c.getItem("tag1").getItemProperty("name").getValue())
                 .isEqualTo("tag1");
+    }
+
+    // ------------------------------------------------------------------
+    // #39: the item id is the typed text, whatever the caption says
+    // ------------------------------------------------------------------
+
+    @Test
+    void anExplicitCaptionDoesNotChangeTheItemId() {
+        field.setTokenCaption("tag1", "Unrelated");
+
+        field.simulateNewItemInput("tag1");
+
+        assertThat(field.getComboBox().getItemIds()).containsExactly("tag1");
+    }
+
+    @Test
+    void indexCaptionModeDoesNotChangeTheItemId() {
+        field.setTokenCaptionMode(ItemCaptionMode.INDEX);
+
+        field.simulateNewItemInput("tag1");
+
+        assertThat(field.getComboBox().getItemIds()).containsExactly("tag1");
+    }
+
+    @Test
+    void iconOnlyCaptionModeDoesNotChangeTheItemId() {
+        field.setTokenCaptionMode(ItemCaptionMode.ICON_ONLY);
+
+        field.simulateNewItemInput("tag1");
+
+        assertThat(field.getComboBox().getItemIds()).containsExactly("tag1");
+    }
+
+    @Test
+    void aPresetCaptionIsIgnoredWhenWritingNewTokenEvenInExplicitMode() {
+        IndexedContainer c = withNameProperty();
+        field.setTokenCaptionPropertyId("name"); // switches to PROPERTY
+        field.setTokenCaptionMode(ItemCaptionMode.EXPLICIT_DEFAULTS_ID);
+        field.setTokenCaption("tag1", "Unrelated");
+
+        field.simulateNewItemInput("tag1");
+
+        assertThat(field.getComboBox().getItemIds()).containsExactly("tag1");
+        assertThat(c.getItem("tag1").getItemProperty("name").getValue())
+                .isEqualTo("tag1");
+    }
+
+    // ------------------------------------------------------------------
+    // A caption/icon preset before the token was typed
+    // ------------------------------------------------------------------
+
+    @Test
+    void aPresetCaptionIsIgnoredWhenWritingNewToken() {
+        IndexedContainer c = withNameProperty();
+        field.setTokenCaptionPropertyId("name");
+        field.setTokenCaption("tag1", "Custom Label");
+
+        field.simulateNewItemInput("tag1");
+
+        assertWithMessage("The provided token caption is not stored to the item by default")
+                .that(c.getItem("tag1").getItemProperty("name").getValue())
+                .isEqualTo("tag1");
+
+        field.simulateNewItemInput("tag2");
+
+        assertWithMessage("The typed input text is used if no explicit caption was set")
+                .that(c.getItem("tag2").getItemProperty("name").getValue())
+                .isEqualTo("tag2");
+    }
+
+    @Test
+    void aPresetIconIsNotWrittenIntoTheIconProperty() {
+        IndexedContainer c = withNameProperty();
+        c.addContainerProperty("icon", Resource.class, null);
+        field.setTokenIconPropertyId("icon");
+        Resource icon = new ThemeResource("icons/token.png");
+        field.setTokenIcon("tag1", icon);
+
+        field.simulateNewItemInput("tag1");
+
+        assertThat(c.getItem("tag1").getItemProperty("icon").getValue())
+                .isNull();
+    }
+
+    private IndexedContainer withNameProperty() {
+        IndexedContainer c = new IndexedContainer();
+        c.addContainerProperty("name", String.class, null);
+        field.setContainerDataSource(c);
+        return c;
     }
 }
