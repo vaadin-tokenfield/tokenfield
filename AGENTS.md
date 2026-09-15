@@ -40,6 +40,11 @@ Server side (`tokenfield/src/main/java/org/vaadin/tokenfield`):
 - Captions/icons are *derived* from the ComboBox's `ItemCaptionMode`/container each time, never
   cached. `getTokenCaption` deliberately deviates from `AbstractSelect` for tokens outside the
   container (see its Javadoc).
+- `null` is a fully supported token id across every method that takes one (`addToken`,
+  `removeToken`, the `onToken*` hooks, `configureTokenButton`, `getTokenCaption`/`getTokenIcon`,
+  `setTokenCaption`/`setTokenIcon`) - see `TokenFieldNullTokenIdTest`. Reachable only
+  programmatically; the UI path is guarded out (`cb.setNullSelectionAllowed(false)` plus the
+  value-change listener's own null check).
 
 Client side (`org.vaadin.tokenfield.client.ui`, compiled by GWT 2.7 into the widgetset):
 
@@ -50,6 +55,9 @@ Client side (`org.vaadin.tokenfield.client.ui`, compiled by GWT 2.7 into the wid
   there, even though javac at 1.8 accepts them. Sonar's `S1604` is disabled for this package.
 - Only `client/**` sources and the `.gwt.xml` ship inside the jar (`tokenfield/pom.xml`
   resources); the GWT compiler in consuming projects recompiles them.
+- For the same reason, `client/**` must never import `org.jspecify.annotations` (used
+  elsewhere for nullness on the server-side API): JSpecify ships no `.gwt.xml`/translatable
+  source, so it would break the widgetset compile in every consuming project.
 
 # Tests
 

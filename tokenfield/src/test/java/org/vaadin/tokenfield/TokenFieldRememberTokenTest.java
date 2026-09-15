@@ -5,14 +5,11 @@ import org.junit.jupiter.api.Test;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.vaadin.data.util.IndexedContainer;
+
 /**
  * Tests {@link TokenField#rememberToken(String)} via the NewItemHandler path
- * ({@link TestTokenField#simulateNewItemInput(String)}), restricted to the
- * default configuration (no {@code tokenCaptionPropertyId}). That property is
- * intentionally out of scope here: {@code rememberToken} adds the new item
- * under its <em>caption</em> but writes the caption property under the
- * original <em>id</em>, which throws when caption and id diverge — see
- * {@code TokenField#rememberToken(String)}.
+ * ({@link TestTokenField#simulateNewItemInput(String)}).
  */
 class TokenFieldRememberTokenTest {
 
@@ -42,5 +39,23 @@ class TokenFieldRememberTokenTest {
         field.setRememberNewTokens(false);
         field.simulateNewItemInput("volatile");
         assertThat(field.getComboBox().containsId("volatile")).isFalse();
+    }
+
+    /**
+     * The new item is added under the typed text itself, so the caption
+     * property write - keyed by that same text - always finds the item it
+     * just created.
+     */
+    @Test
+    void captionPropertyIsSetUnderTheTypedTextAsTheItemId() {
+        IndexedContainer c = new IndexedContainer();
+        c.addContainerProperty("name", String.class, null);
+        field.setContainerDataSource(c);
+        field.setTokenCaptionPropertyId("name");
+
+        field.simulateNewItemInput("tag1");
+
+        assertThat(c.getContainerProperty("tag1", "name").getValue())
+                .isEqualTo("tag1");
     }
 }
