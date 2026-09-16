@@ -22,6 +22,9 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import com.vaadin.data.Container;
 import com.vaadin.data.Property;
 import com.vaadin.server.Resource;
@@ -40,6 +43,8 @@ import com.vaadin.ui.CustomField;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Layout;
 import com.vaadin.ui.themes.Reindeer;
+
+import static java.util.Objects.requireNonNull;
 
 /**
  *
@@ -140,7 +145,18 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
     public static final String STYLE_BUTTON_EMPHAZISED = "emphasize";
 
     /**
-     * The layout currently in use
+     * The layout currently in use.
+     * <p>
+     * Lazily initialized: {@code null} only during the
+     * {@code AbstractComponent}/{@code AbstractField} superclass
+     * constructor, before this class's own constructor calls
+     * {@link #setLayout(Layout)} - the {@code != null} guards in
+     * {@link #setHeight(float, Unit)} and its siblings exist for exactly
+     * that window. Once a {@code TokenField} instance is reachable by a
+     * caller, this field is always non-null: {@link #setLayout} never
+     * accepts a {@code null} {@code newLayout}, so nothing after
+     * construction can null it out again.
+     * </p>
      */
     protected Layout layout;
 
@@ -180,9 +196,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @param insertPosition
      *            the desired insert position
      */
-    public TokenField(String caption, InsertPosition insertPosition) {
+    public TokenField(@Nullable String caption, InsertPosition insertPosition) {
         this();
-        this.insertPosition = insertPosition;
+        this.insertPosition = requireNonNull(insertPosition);
         setCaption(caption);
     }
 
@@ -192,7 +208,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @param caption
      *            the desired caption
      */
-    public TokenField(String caption) {
+    public TokenField(@Nullable String caption) {
         this();
         setCaption(caption);
     }
@@ -213,7 +229,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @param lo
      *            the desired layout
      */
-    public TokenField(String caption, Layout lo) {
+    public TokenField(@Nullable String caption, Layout lo) {
         this(lo);
         setCaption(caption);
     }
@@ -229,10 +245,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @param insertPosition
      *            the desired token insert position
      */
-    public TokenField(String caption, Layout lo, InsertPosition insertPosition) {
+    public TokenField(@Nullable String caption, Layout lo, InsertPosition insertPosition) {
         this(lo);
         setCaption(caption);
-        this.insertPosition = insertPosition;
+        this.insertPosition = requireNonNull(insertPosition);
     }
 
     /**
@@ -246,7 +262,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      */
     public TokenField(Layout lo, InsertPosition insertPosition) {
         this(lo);
-        this.insertPosition = insertPosition;
+        this.insertPosition = requireNonNull(insertPosition);
     }
 
     /**
@@ -256,6 +272,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the desired layout
      */
     public TokenField(Layout lo) {
+        requireNonNull(lo);
         setStyleName(STYLE_TOKENFIELD + " " + STYLE_TOKENTEXTFIELD);
 
         cb.setImmediate(true);
@@ -283,7 +300,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
             // This is essentially what the ComboBox.DefaultNewItemHandler does,
             // but we'll first delegate adding token button, then add to
             // container.
-            public void addNewItem(String tokenId) {
+            public void addNewItem(@NonNull String tokenId) {
                 if (isReadOnly()) {
                     throw new Property.ReadOnlyException();
                 }
@@ -300,13 +317,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     protected void rememberToken(String tokenId) {
-        if (cb.addItem(getTokenCaption(tokenId)) != null) {
+        if (cb.addItem(tokenId) != null) {
             // Sets the caption property, if used
             if (getTokenCaptionPropertyId() != null) {
-                cb.getContainerProperty(tokenId, getTokenCaptionPropertyId())
-                        .setValue(tokenId);
-
+                Property property = cb.getContainerProperty(tokenId, getTokenCaptionPropertyId());
+                if (property != null) {
+                    property.setValue(tokenId);
+                }
             }
         }
     }
@@ -315,6 +334,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * Rebuilds from scratch
      */
     private void rebuild() {
+        requireNonNull(layout, "Layout must be initialized first!");
         layout.removeAllComponents();
         if (!isReadOnly() && insertPosition == InsertPosition.AFTER) {
             layout.addComponent(cb);
@@ -337,7 +357,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @see com.vaadin.ui.CustomField#setInternalValue(java.lang.Object)
      */
     @Override
-    protected void setInternalValue(Set<?> newValue) {
+    protected void setInternalValue(@Nullable Set<?> newValue) {
         Set<Object> old = buttons.keySet();
 
         super.setInternalValue(newValue);
@@ -380,7 +400,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * Re-runs {@link #configureTokenButton(Object, Button)} for a single token,
      * ignoring ids that are not currently tokens.
      */
-    private void refreshTokenButton(Object tokenId) {
+    private void refreshTokenButton(@Nullable Object tokenId) {
         Button button = buttons.get(tokenId);
         if (button != null) {
             configureTokenButton(tokenId, button);
@@ -396,9 +416,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * if it's not a duplicate.
      * 
      * @param tokenId
-     *            the token id selected (or input)
+     *            the token id selected (or input); {@code null} is a
+     *            supported token id
      */
-    protected void onTokenInput(Object tokenId) {
+    protected void onTokenInput(@Nullable Object tokenId) {
         addToken(tokenId);
     }
 
@@ -408,9 +429,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * customized, e.g., present a confirmation dialog.
      * 
      * @param tokenId
-     *            the id of the token that was clicked
+     *            the id of the token that was clicked; {@code null} is a
+     *            supported token id
      */
-    protected void onTokenClick(Object tokenId) {
+    protected void onTokenClick(@Nullable Object tokenId) {
         removeToken(tokenId);
     }
 
@@ -422,13 +444,14 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * dialog.
      * 
      * @param tokenId
-     *            the id of the token that will be removed
+     *            the id of the token that will be removed; {@code null} is a
+     *            supported token id
      */
-    protected void onTokenDelete(Object tokenId) {
+    protected void onTokenDelete(@Nullable Object tokenId) {
         onTokenClick(tokenId);
     }
 
-    private void addTokenButton(final Object val) {
+    private void addTokenButton(final @Nullable Object val) {
         Button b = new Button();
         configureTokenButton(val, b);
         b.addClickListener(new Button.ClickListener() {
@@ -499,15 +522,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * {@link #setNewTokensAllowed(boolean)}) you can programmatically add
      * tokens that the user cannot add him/herself. <br>
      * Consider adding the token to the container before calling
-     * {@link #addToken(Object)} if you're using a custom caption based on
+     * this method, if you're using a custom caption based on
      * container/item properties, or if you want the token to be available to
      * the user as a suggestion later.
      * </p>
      * 
      * @param tokenId
-     *            the token to add
+     *            the token to add; {@code null} is a supported token id
      */
-    public void addToken(Object tokenId) {
+    public void addToken(@Nullable Object tokenId) {
         Set<?> set = getValue();
         if (set == null) {
             set = new LinkedHashSet<>();
@@ -528,9 +551,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * </p>
      * 
      * @param tokenId
-     *            the token to remove
+     *            the token to remove; {@code null} is a supported token id
      */
-    public void removeToken(Object tokenId) {
+    public void removeToken(@Nullable Object tokenId) {
         Set<?> set = getValue();
         if (set == null) {
             return;
@@ -541,7 +564,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         setValue(newSet);
     }
 
-    private void removeTokenButton(Object tokenId) {
+    private void removeTokenButton(@Nullable Object tokenId) {
         Button button = buttons.get(tokenId);
         layout.removeComponent(button);
         buttons.remove(tokenId);
@@ -564,11 +587,12 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * </p>
      *
      * @param tokenId
-     *            the token this button pertains to
+     *            the token this button pertains to; {@code null} is a
+     *            supported token id
      * @param button
      *            the button to be configured
      */
-    protected void configureTokenButton(Object tokenId, Button button) {
+    protected void configureTokenButton(@Nullable Object tokenId, Button button) {
         button.setCaption(getTokenCaption(tokenId) + " ×");
         button.setIcon(getTokenIcon(tokenId));
         button.setDescription("Click to remove");
@@ -595,7 +619,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         if (layout != null) {
             layout.removeAllComponents();
         }
-        layout = newLayout;
+        layout = requireNonNull(newLayout);
         // TODO
         // setCompositionRoot(layout);
         rebuild();
@@ -625,6 +649,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the insert position to use for the current token
      */
     public void setTokenInsertPosition(InsertPosition insertPosition) {
+        requireNonNull(insertPosition);
         if (this.insertPosition != insertPosition) {
             this.insertPosition = insertPosition;
             cb.setTokenInsertPosition(insertPosition);
@@ -674,9 +699,10 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * 
      * @see ComboBox#setContainerDataSource(Container)
      * @param c
-     *            the token container data source
+     *            the token container data source, or {@code null} to fall
+     *            back to an empty {@link com.vaadin.data.util.IndexedContainer}
      */
-    public void setContainerDataSource(Container c) {
+    public void setContainerDataSource(@Nullable Container c) {
         cb.setContainerDataSource(c);
         // AbstractSelect#setContainerDataSource only marks itself dirty; the
         // existing token buttons have to be re-derived explicitly.
@@ -748,7 +774,7 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      *            the desired filtering mode
      */
     public void setFilteringMode(FilteringMode filteringMode) {
-        cb.setFilteringMode(filteringMode);
+        cb.setFilteringMode(requireNonNull(filteringMode));
     }
 
     /**
@@ -775,9 +801,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * Gets the input prompt; works as {@link ComboBox#getInputPrompt()}.
      * 
      * @see ComboBox#getInputPrompt()
-     * @return the current input prompt
+     * @return the current input prompt, or {@code null} if not enabled
      */
-    public String getInputPrompt() {
+    public @Nullable String getInputPrompt() {
         return cb.getInputPrompt();
     }
 
@@ -807,9 +833,15 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @see AbstractSelect#getItemCaption(Object)
      * @param tokenId
      *            the id of the token
-     * @return the caption
+     * @return the caption; {@code null} for a null tokenId under any mode
+     *         other than {@link ItemCaptionMode#ITEM}/{@link ItemCaptionMode#PROPERTY}
+     *         (which instead render it as the string {@code "null"}), unless
+     *         {@link #setTokenCaption} set an explicit override for it and
+     *         the mode is {@link ItemCaptionMode#EXPLICIT}/
+     *         {@link ItemCaptionMode#EXPLICIT_DEFAULTS_ID} - see
+     *         {@link TokenComboBox#getItemCaption(Object)}
      */
-    public String getTokenCaption(Object tokenId) {
+    public @Nullable String getTokenCaption(@Nullable Object tokenId) {
         ItemCaptionMode mode = getTokenCaptionMode();
         if ((mode == ItemCaptionMode.ITEM || mode == ItemCaptionMode.PROPERTY)
                 && !cb.containsId(tokenId)) {
@@ -828,9 +860,9 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     /**
      * @see ComboBox#getItemCaptionPropertyId()
-     * @return the current caption property id
+     * @return the current caption property id, or {@code null} if none is set
      */
-    public Object getTokenCaptionPropertyId() {
+    public @Nullable Object getTokenCaptionPropertyId() {
         return cb.getItemCaptionPropertyId();
     }
 
@@ -838,17 +870,19 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * @see ComboBox#getItemIcon(Object)
      * @param tokenId
      *            the id of the token
-     * @return the icon for the given token, or {@code null} if there is none
+     * @return the icon for the given token, or {@code null} if there is
+     *         none - see {@link TokenComboBox#getItemIcon(Object)} for how a
+     *         null tokenId is handled
      */
-    public Resource getTokenIcon(Object tokenId) {
+    public @Nullable Resource getTokenIcon(@Nullable Object tokenId) {
         return cb.getItemIcon(tokenId);
     }
 
     /**
      * @see ComboBox#getItemIconPropertyId()
-     * @return the current item icon property id
+     * @return the current item icon property id, or {@code null} if none is set
      */
-    public Object getTokenIconPropertyId() {
+    public @Nullable Object getTokenIconPropertyId() {
         return cb.getItemIconPropertyId();
     }
 
@@ -917,11 +951,11 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         super.setSizeUndefined();
     }
 
-    public void setInputHeight(String height) {
+    public void setInputHeight(@Nullable String height) {
         this.cb.setHeight(height);
     }
 
-    public void setInputWidth(String width) {
+    public void setInputWidth(@Nullable String width) {
         this.cb.setWidth(width);
     }
 
@@ -946,22 +980,25 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
      * 
      * @see ComboBox#setInputPrompt(String)
      * @param inputPrompt
-     *            the input prompt to set
+     *            the desired input prompt, or {@code null} to disable
      */
-    public void setInputPrompt(String inputPrompt) {
+    public void setInputPrompt(@Nullable String inputPrompt) {
         cb.setInputPrompt(inputPrompt);
     }
 
     /**
      * sets the caption for the given token.
-     * 
+     *
      * @see ComboBox#setItemCaption(Object, String)
      * @param tokenId
-     *            token whose caption to set
+     *            token whose caption to set; {@code null} is a supported
+     *            token id - see {@link TokenComboBox#setItemCaption(Object,
+     *            String)}
      * @param caption
-     *            the desired caption
+     *            the desired caption, or {@code null} to clear an explicit
+     *            caption
      */
-    public void setTokenCaption(Object tokenId, String caption) {
+    public void setTokenCaption(@Nullable Object tokenId, @Nullable String caption) {
         cb.setItemCaption(tokenId, caption);
         refreshTokenButton(tokenId);
     }
@@ -976,24 +1013,35 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
 
     /**
      * @see ComboBox#setItemCaptionPropertyId(Object)
+     * @param propertyId
+     *            the id of the property, or {@code null} to disable this
+     *            feature
      */
-    public void setTokenCaptionPropertyId(Object propertyId) {
+    public void setTokenCaptionPropertyId(@Nullable Object propertyId) {
         cb.setItemCaptionPropertyId(propertyId);
         refreshTokens();
     }
 
     /**
      * @see ComboBox#setItemIcon(Object, Resource)
+     * @param tokenId
+     *            token whose icon to set; {@code null} is a supported token
+     *            id - see {@link TokenComboBox#setItemIcon(Object, Resource)}
+     * @param icon
+     *            the icon to use, or {@code null} to remove it
      */
-    public void setTokenIcon(Object tokenId, Resource icon) {
+    public void setTokenIcon(@Nullable Object tokenId, @Nullable Resource icon) {
         cb.setItemIcon(tokenId, icon);
         refreshTokenButton(tokenId);
     }
 
     /**
      * @see AbstractSelect#setItemIconPropertyId(Object)
+     * @param propertyId
+     *            the id of the property, or {@code null} to disable this
+     *            feature
      */
-    public void setTokenIconPropertyId(Object propertyId) {
+    public void setTokenIconPropertyId(@Nullable Object propertyId) {
         cb.setItemIconPropertyId(propertyId);
         refreshTokens();
     }

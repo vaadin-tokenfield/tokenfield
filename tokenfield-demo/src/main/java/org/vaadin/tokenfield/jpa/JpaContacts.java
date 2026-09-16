@@ -20,6 +20,7 @@ import java.util.Locale;
 
 import javax.persistence.EntityManager;
 
+import org.jspecify.annotations.Nullable;
 import org.vaadin.tokenfield.Contact;
 
 import com.vaadin.addon.jpacontainer.JPAContainer;
@@ -123,7 +124,7 @@ public final class JpaContacts {
      * @return the matching contact's entity id, or null if the address book has
      *         no such contact
      */
-    public static Long findId(String nameOrEmail) {
+    public static @Nullable Long findId(@Nullable String nameOrEmail) {
         if (nameOrEmail == null || nameOrEmail.trim().isEmpty()) {
             return null;
         }

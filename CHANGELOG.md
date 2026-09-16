@@ -20,9 +20,20 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   reconfigured, so overrides must be idempotent.
 - In `ItemCaptionMode.ITEM` and `PROPERTY`, a token the container does not hold is now named after
   itself instead of being left blank — a documented deviation from `AbstractSelect`.
+- **Breaking:** `rememberToken` now adds a new token to the container under the typed text itself,
+  not a caption derived from it. Previously, a `tokenCaptionPropertyId` write after adding the item
+  looked the item up by the typed text while it had been added under its derived caption instead —
+  throwing whenever the two diverged (any caption mode other than the default). `null` is now also
+  fully supported as a token id across every method that takes one; see `AGENTS.md`.
 
 ### Added
 
+- `setTokenCaption(null, ...)`/`setTokenIcon(null, ...)` now set an explicit caption/icon override
+  for the `null` token id, previously a silent no-op (`AbstractSelect#setItemCaption`/`setItemIcon`
+  ignore a null itemId, which `TokenField` can no longer delegate to for this case). The caption
+  override applies under the same modes an explicit caption applies under for any other token id
+  (`EXPLICIT`/`EXPLICIT_DEFAULTS_ID`); the icon override is mode-independent, matching
+  `AbstractSelect#getItemIcon`.
 - `TokenField.refreshTokens()`, to re-derive the token buttons after a data change the field
   cannot see by itself.
 - Maven-based Project packaging
@@ -36,6 +47,8 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   run under `maven-failsafe-plugin` against the Demo application.
 - A demo panel showing the component usage with a JPAContainer (using an in-memory H2 database)
 - Automated CI build and code-quality review on every push and pull request
+- JSpecify `@Nullable` annotations on `TokenField`'s public getters/setters that can accept or
+  return null, documenting existing behavior — not a behavior change.
   (using SpotBugs, PMD, and SonarQube). 
   See [docs/code-quality.md](docs/code-quality.md).
 

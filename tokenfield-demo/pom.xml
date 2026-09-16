@@ -42,7 +42,6 @@
             <groupId>com.vaadin</groupId>
             <artifactId>vaadin-themes</artifactId>
         </dependency>
-
         <!--
             For the "JPAContainer" demo panel:
             the add-on itself, a JPA 2.1 provider to back it, and an in-memory database so the

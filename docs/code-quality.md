@@ -145,6 +145,23 @@ server-side too, but its coverage isn't measured: the demo runs inside `jetty-ma
 attributing that execution to the add-on's classes would mean attaching the JaCoCo agent to the
 Jetty JVM and merging a second `.exec` file into the report.
 
+### Local git hooks
+
+`.githooks/pre-commit` blocks a commit that stages an `org.jspecify` reference into
+`org/vaadin/tokenfield/client/**` (the GWT-compiled package - see AGENTS.md). It calls
+`scripts/check-jspecify-client-guard.sh`, the same script the Claude Code `PreToolUse` guard in
+`.claude/settings.json` calls, so both enforce the identical rule.
+
+A plain `git clone` gets it enabled automatically: `com.rudikershaw.gitbuildhook:git-build-hook-maven-plugin`,
+bound to the `validate` phase of the root POM, sets `core.hooksPath` on the first `./mvnw` run.
+**A `git worktree` checkout does not** - the plugin detects it and deliberately makes no
+configuration change (`The plugin appears to be running in a Git worktree.`), so a worktree needs
+the one-time step run by hand:
+
+```shell
+git config core.hooksPath .githooks
+```
+
 ### GitHub code scanning (CodeQL)
 
 Worth knowing as an alternative: CodeQL is free for public repositories, which this one is, so it's
