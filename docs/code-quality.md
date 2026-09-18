@@ -6,14 +6,14 @@ Automated review of every push and every pull request, as three parallel jobs in
 
 | Job | Runs | Gate |
 | --- | --- | --- |
-| **static-analysis** | every push and every pull request, on Java 8 | fails on SpotBugs findings at the default *Medium* threshold, and on PMD priority 1–2 findings |
+| **static-analysis** | every push and every pull request, on Java 8 | fails on SpotBugs findings at the default *Medium* threshold, on PMD priority 1–2 findings, and on ERROR-severity Error Prone findings |
 | **build** | every push and every pull request | unit tests, the JaCoCo coverage floor and the browser BDD suite (`mvn verify`) |
 | **sonar** | pull requests, `main` and `v*` tags — not feature-branch pushes — and only once a `SONAR_TOKEN` secret exists | Sonar's own quality gate, via `-Dsonar.qualitygate.wait=true` |
 
 `publish` declares `needs: [static-analysis, build, sonar]`. GitHub Actions skips a job whose
-`needs` didn't all succeed, so a SpotBugs/PMD finding, a build failure or a failed Sonar quality
-gate blocks the snapshot deploy and the Maven Central release without any extra plumbing in the
-publish job itself.
+`needs` didn't all succeed, so a SpotBugs/PMD/Error Prone finding, a build failure or a failed
+Sonar quality gate blocks the snapshot deploy and the Maven Central release without any extra
+plumbing in the publish job itself.
 
 The three QA jobs run in parallel rather than staged one after another, and none of them builds
 `tokenfield-demo` (the module with the slow parts — the GWT widgetset compile and the browser
@@ -30,16 +30,18 @@ suite 20s), `static-analysis` ~90s of mostly cold-cache plugin download, `sonar`
 
 ## SpotBugs and PMD
 
-Both plugins are configured in the parent POM's `pluginManagement`, so CI and a local run execute
-exactly the same checks:
+Both plugins are configured in the parent POM's `static-analysis` profile (shared with Error
+Prone, below), so CI and a local run execute exactly the same checks:
 
 ```shell
-./mvnw test-compile spotbugs:check pmd:check
+./mvnw -Pstatic-analysis test-compile spotbugs:check pmd:check
 ```
 
 One invocation, on purpose: `test-compile` gives the analysers freshly compiled classes and lets
 `tokenfield-demo` resolve `tokenfield` from the reactor instead of from a repository, and it stops
-short of `prepare-package`, so the ~30-second GWT widgetset compile stays out of this job.
+short of `prepare-package`, so the ~30-second GWT widgetset compile stays out of this job. With the
+profile active, that same `test-compile` also runs Error Prone (it hooks into the compile itself,
+not a separate goal), so this one command gates all three.
 
 Both plugins are pinned to their last releases that still run on Java 8 (`spotbugs-maven-plugin`
 4.7.3.6, `maven-pmd-plugin` 3.21.2), which is the JDK this project builds with.
@@ -61,6 +63,44 @@ below those thresholds.
 To suppress a false positive, add a narrowly scoped entry to
 [`config/spotbugs-excludes.xml`](../config/spotbugs-excludes.xml) — match the class, the method and
 the bug pattern, so a genuine occurrence elsewhere still fails the check — and say why in a comment.
+
+## Error Prone
+
+[Error Prone](https://errorprone.info) is Truth's own recommendation: several of its bundled
+checks catch Truth misuse directly (`TruthIncompatibleType`, `TruthAssertExpected`,
+`TruthConstantAsserts`, `TruthGetOrDefault`, `ChainedAssertionLosesContext`; a sixth,
+`TruthContainsExactlyElementsInUsage`, isn't available at the pinned version below). It is
+configured in the same `static-analysis` Maven profile as SpotBugs and PMD above, not the default
+build — it's an extra annotation processor on every compile, and the fast inner loop should stay
+fast:
+
+```shell
+./mvnw -Pstatic-analysis test-compile
+```
+
+**Pinned to 2.10.0.** The current Error Prone release requires JDK 21+ to run at all, which this
+project's Java 8 build (`.java-version`, see AGENTS.md) doesn't have on hand by default. Rather
+than add a second JDK requirement, the profile pins `error_prone_core` to 2.10.0 — the last release
+that still runs on JDK 8 — trading away only the one Truth check named above (added in 2.22.0).
+
+**How it runs on JDK 8 at all.** JDK 8's own `javac` predates the `-Xplugin` compiler hook Error
+Prone needs (added in JDK 9) and the `--should-stop=ifError=FLOW` flag syntax (its JDK 8 spelling
+is `-XDshould-stop.ifError=FLOW`, used in the profile instead). The profile pulls in
+`com.google.errorprone:javac` (a backport of JDK 9's compiler API onto 8) as a `maven-compiler
+-plugin` dependency and loads it ahead of the JDK's own classes with `-J-Xbootclasspath/p:`
+(`fork=true` is required for `-J` flags to reach the forked compiler process). This is the
+project's javac, still targeting Java 8 bytecode — nothing here changes what JDK builds or runs
+the add-on.
+
+`-XDshould-stop.ifError=FLOW` means only ERROR-severity findings fail the build; WARNING-severity
+ones (the majority of Error Prone's default checks, including all six Truth ones above) are
+reported but don't block anything — mirroring how SpotBugs/PMD above only enforce their
+higher-severity findings.
+
+To suppress a specific check, either narrowly with `@SuppressWarnings("CheckName")` on the flagged
+element (with a reason in a comment, same convention as the SpotBugs excludes file above), or
+project-wide by adding `-Xep:CheckName:OFF` next to `-Xplugin:ErrorProne` in the profile's
+`compilerArgs`.
 
 ## Enabling SonarQube
 

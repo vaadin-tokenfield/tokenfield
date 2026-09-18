@@ -905,20 +905,6 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         return cb.getTabIndex();
     }
 
-    /*-
-    @Override
-    public void setHeight(String height) {
-        this.layout.setHeight(height);
-        super.setHeight(height);
-    }
-
-    @Override
-    public void setWidth(String width) {
-        this.layout.setWidth(width);
-        super.setWidth(width);
-    }
-    -*/
-
     @Override
     public void setHeight(float height, Unit unit) {
         if (this.layout != null) {

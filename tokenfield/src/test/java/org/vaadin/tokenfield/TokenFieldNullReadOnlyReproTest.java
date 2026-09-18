@@ -5,7 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashSet;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Regression tests for
@@ -33,8 +34,9 @@ class TokenFieldNullReadOnlyReproTest {
     void removeTokenOnNullValueDoesNotThrow() {
         TestTokenField f = new TestTokenField();
         // getValue() is null — no token was ever added or set
-        assertDoesNotThrow(() -> f.removeToken("nonexistent"),
-                "removeToken on a null-value field must not throw NPE");
+        assertThat(f.getValue()).isNull();
+        f.removeToken("nonexistent");
+        assertThat(f.getValue()).isNull();
     }
 
     /** The same, reached by an explicit {@code setValue(null)}. */
@@ -42,9 +44,11 @@ class TokenFieldNullReadOnlyReproTest {
     void removeTokenAfterSetValueNullDoesNotThrow() {
         TestTokenField f = new TestTokenField();
         f.addToken("initial");
+        assertThat(f.buttons).containsKey("initial");
         f.setValue(null);   // explicit null — buttons map is cleared
-        assertDoesNotThrow(() -> f.removeToken("initial"),
-                "removeToken after setValue(null) must not throw NPE");
+        assertThat(f.buttons).isEmpty();
+        f.removeToken("initial");
+        assertThat(f.buttons).isEmpty();
     }
 
     // -----------------------------------------------------------------------
@@ -63,18 +67,19 @@ class TokenFieldNullReadOnlyReproTest {
 
         // setInternalValue bypasses the AbstractField read-only guard that
         // setValue would hit, so addTokenButton runs while isReadOnly().
-        LinkedHashSet<Object> tokenSet = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> tokenSet = new LinkedHashSet<>();
         tokenSet.add("ro-token");
         f.exposeSetInternalValue(tokenSet);
 
-        assertEquals(1, f.getTokenButtons().size(),
-                "One button should have been created for the injected token");
+        assertWithMessage("One button should have been created for the injected token")
+                .that(f.getTokenButtons()).hasSize(1);
 
         Button b = f.getTokenButtons().get("ro-token");
-        assertNotNull(b, "Button for 'ro-token' must exist in the buttons map");
+        assertWithMessage("Button for 'ro-token' must exist in the buttons map")
+                .that(b).isNotNull();
 
-        assertTrue(b.isReadOnly(),
-                "A token button created while the field is read-only must itself be read-only");
+        assertWithMessage("A token button created while the field is read-only must itself be read-only")
+                .that(b.isReadOnly()).isTrue();
     }
 
     /** Round-trip guard: clearing read-only must make those buttons writable. */
@@ -83,16 +88,16 @@ class TokenFieldNullReadOnlyReproTest {
         TestTokenField f = new TestTokenField();
         f.setReadOnly(true);
 
-        LinkedHashSet<Object> tokenSet = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> tokenSet = new LinkedHashSet<>();
         tokenSet.add("ro-token2");
         f.exposeSetInternalValue(tokenSet);
 
         f.setReadOnly(false);
 
         Button b = f.getTokenButtons().get("ro-token2");
-        assertNotNull(b);
-        assertFalse(b.isReadOnly(),
-                "After clearing read-only, token button must no longer be read-only");
+        assertThat(b).isNotNull();
+        assertWithMessage("After clearing read-only, token button must no longer be read-only")
+                .that(b.isReadOnly()).isFalse();
     }
 
     /** Baseline for the contrast with 3b: the pre-existing setReadOnly path. */
@@ -103,9 +108,9 @@ class TokenFieldNullReadOnlyReproTest {
         f.setReadOnly(true);
 
         Button b = f.getTokenButtons().get("pre-ro");
-        assertNotNull(b);
-        assertTrue(b.isReadOnly(),
-                "Button added before setReadOnly(true) must be read-only afterwards");
+        assertThat(b).isNotNull();
+        assertWithMessage("Button added before setReadOnly(true) must be read-only afterwards")
+                .that(b.isReadOnly()).isTrue();
     }
 
     // -----------------------------------------------------------------------
@@ -121,17 +126,6 @@ class TokenFieldNullReadOnlyReproTest {
     // kept from being sent, not what a caller is promised.
     // -----------------------------------------------------------------------
 
-    /** The path #13 was reported from: a token added, then the field locked. */
-    @Test
-    void clickOnReadOnlyFieldDoesNotThrow() {
-        TestTokenField f = new TestTokenField();
-        f.addToken("pre-ro");
-        f.setReadOnly(true);
-
-        assertDoesNotThrow(() -> f.simulateTokenClickRpc("pre-ro"),
-                "Clicking a token of a read-only field must not throw ReadOnlyException (#13)");
-    }
-
     /**
      * Asserted separately from the exception: a guard could swallow the
      * throw and still remove the token.
@@ -144,26 +138,25 @@ class TokenFieldNullReadOnlyReproTest {
 
         f.simulateTokenClickRpc("pre-ro");
 
-        assertTrue(f.getTokenButtons().containsKey("pre-ro"),
-                "A token of a read-only field must survive being clicked");
-        assertTrue(f.getValue().contains("pre-ro"),
-                "The field's value must still hold the token that was clicked");
+        assertWithMessage("A token of a read-only field must survive being clicked")
+                .that(f.getTokenButtons()).containsKey("pre-ro");
+        assertWithMessage("The field's value must still hold the token that was clicked")
+                .that(f.getValue()).contains("pre-ro");
     }
 
     /** The other creation path: a token injected while already read-only. */
     @Test
-    void clickOnTokenAddedWhileReadOnlyDoesNotRemoveIt() {
+    void clickOnTokenAddedWhileReadOnlyDoesNotRemoveIt() throws Exception {
         TestTokenField f = new TestTokenField();
         f.setReadOnly(true);
 
-        LinkedHashSet<Object> tokenSet = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> tokenSet = new LinkedHashSet<>();
         tokenSet.add("ro-token3");
         f.exposeSetInternalValue(tokenSet);
 
-        assertDoesNotThrow(() -> f.simulateTokenClickRpc("ro-token3"),
-                "A token created while the field is read-only must also be inert");
-        assertTrue(f.getTokenButtons().containsKey("ro-token3"),
-                "That token must survive being clicked");
+        f.simulateTokenClickRpc("ro-token3");
+        assertWithMessage("That token must survive being clicked")
+                .that(f.getTokenButtons()).containsKey("ro-token3");
     }
 
     /**
@@ -177,8 +170,8 @@ class TokenFieldNullReadOnlyReproTest {
 
         f.simulateTokenClickRpc("plain");
 
-        assertFalse(f.getTokenButtons().containsKey("plain"),
-                "Clicking a token of a writable field must remove it");
+        assertWithMessage("Clicking a token of a writable field must remove it")
+                .that(f.getTokenButtons()).doesNotContainKey("plain");
     }
 
     /** Round-trip guard: one read-only toggle must not leave the field inert. */
@@ -191,7 +184,7 @@ class TokenFieldNullReadOnlyReproTest {
 
         f.simulateTokenClickRpc("toggle-me");
 
-        assertFalse(f.getTokenButtons().containsKey("toggle-me"),
-                "Tokens must be removable again once read-only is cleared");
+        assertWithMessage("Tokens must be removable again once read-only is cleared")
+                .that(f.getTokenButtons()).doesNotContainKey("toggle-me");
     }
 }

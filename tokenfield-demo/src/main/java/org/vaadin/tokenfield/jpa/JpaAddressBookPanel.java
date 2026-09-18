@@ -75,7 +75,7 @@ import com.vaadin.ui.Window;
  * That is <a href=
  * "https://github.com/vaadin-tokenfield/tokenfield/issues/24">#24</a>. Until it
  * is fixed in the add-on, an application over a typed container has to resolve
- * such captions itself, which is what {@link #getTokenCaption(Object)} does
+ * such captions itself, which is what {@link TokenField#getTokenCaption(Object)} does
  * here.
  * </p>
  */
@@ -278,7 +278,7 @@ public class JpaAddressBookPanel extends Panel {
             // Just bind a Form to the entity via BeanItem. The generated id is
             // not the user's business, so it is left out of the form.
             Form form = new Form();
-            form.setItemDataSource(new BeanItem<Contact>(contact),
+            form.setItemDataSource(new BeanItem<>(contact),
                     Arrays.asList("name", "email"));
             form.setImmediate(true);
             l.addComponent(form);

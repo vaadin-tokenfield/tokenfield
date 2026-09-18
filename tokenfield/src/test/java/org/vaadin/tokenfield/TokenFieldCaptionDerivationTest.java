@@ -45,7 +45,7 @@ class TokenFieldCaptionDerivationTest {
     }
 
     private static Map<Object, String> captions(TestTokenField field) {
-        Map<Object, String> result = new LinkedHashMap<Object, String>();
+        Map<Object, String> result = new LinkedHashMap<>();
         for (Object tokenId : field.getTokenButtons().keySet()) {
             result.put(tokenId, caption(field, tokenId));
         }

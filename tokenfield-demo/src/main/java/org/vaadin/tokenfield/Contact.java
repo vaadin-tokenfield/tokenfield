@@ -16,6 +16,7 @@
 package org.vaadin.tokenfield;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import org.jspecify.annotations.Nullable;
 
@@ -108,7 +109,7 @@ public class Contact implements Serializable {
     public boolean equals(@Nullable Object obj) {
         if (obj instanceof Contact) {
             String other = ((Contact) obj).getEmail();
-            return email == null ? other == null : email.equals(other);
+            return Objects.equals(email, other);
         }
         return false;
     }

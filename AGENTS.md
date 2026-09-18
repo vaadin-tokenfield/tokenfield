@@ -13,7 +13,7 @@ covers the CI gates and Sonar; `docs/directory-listing.md` is the Directory copy
 ./mvnw -pl tokenfield test -Dtest=TokenFieldAddRemoveTest    # one class; add #method for one test
 ./mvnw clean verify                                          # + JaCoCo 90% line floor, widgetset compile, browser BDD suite
 ./mvnw clean verify -DskipITs=true                           # same without the browser suite
-./mvnw test-compile spotbugs:check pmd:check                 # the static-analysis CI gate
+./mvnw -Pstatic-analysis test-compile spotbugs:check pmd:check   # the static-analysis CI gate: SpotBugs, PMD, Error Prone (pinned to 2.10.0, runs on Java 8 - see docs/code-quality.md)
 ./mvnw -pl tokenfield-demo -am package -DskipTests && ./mvnw -pl tokenfield-demo jetty:run   # demo at :8080
 ```
 

@@ -27,7 +27,7 @@ public class VTokenField extends VFilterSelect {
 
     protected boolean after = false;
 
-    protected List<DeleteListener> listeners = new LinkedList<>();
+    protected List<DeleteListener> listeners = new LinkedList<DeleteListener>();
 
     @Override
     public void onKeyDown(KeyDownEvent event) {

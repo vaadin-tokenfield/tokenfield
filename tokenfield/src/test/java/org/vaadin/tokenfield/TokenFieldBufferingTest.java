@@ -22,7 +22,7 @@ class TokenFieldBufferingTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void bufferedAddTokenNotWrittenThroughUntilCommit() {
-        LinkedHashSet<Object> initial = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> initial = new LinkedHashSet<>();
         ObjectProperty prop = new ObjectProperty(initial);
 
         TestTokenField f = new TestTokenField();
@@ -50,7 +50,7 @@ class TokenFieldBufferingTest {
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Test
     void discardRevertsUncommittedChanges() {
-        LinkedHashSet<Object> initial = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> initial = new LinkedHashSet<>();
         initial.add("committed");
         ObjectProperty prop = new ObjectProperty(initial);
 

@@ -7,7 +7,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /**
@@ -39,15 +38,13 @@ class TokenFieldDeleteKeyTest {
 
     @Test
     void deleteOnEmptyFieldIsNoOp() {
-        // Truth has no exception-under-test assertion; JUnit's remains the
-        // idiomatic tool for control-flow checks like this one.
-        assertDoesNotThrow(() -> field.simulateDeleteKey());
+        field.simulateDeleteKey();
         assertThat(field.getTokenButtons()).isEmpty();
     }
 
     @Test
     void deleteCallsOnTokenDeleteHook() {
-        AtomicReference<Object> deleted = new AtomicReference<Object>();
+        AtomicReference<Object> deleted = new AtomicReference<>();
         TestTokenField custom = new TestTokenField() {
             @Override
             protected void onTokenDelete(Object tokenId) {

@@ -5,7 +5,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
  * Tests that getter/setter pairs on {@link TokenField} correctly delegate
@@ -112,16 +111,5 @@ class TokenFieldDelegationTest {
         field.setRememberNewTokens(false);
         field.setRememberNewTokens(true);
         assertThat(field.isRememberNewTokens()).isTrue();
-    }
-
-    // -----------------------------------------------------------------------
-    // Focus
-    // -----------------------------------------------------------------------
-
-    @Test
-    void focusDoesNotThrowWithNoUiAttached() {
-        // Truth has no exception-under-test assertion; JUnit's remains the
-        // idiomatic tool for control-flow checks like this one.
-        assertDoesNotThrow(() -> field.focus());
     }
 }

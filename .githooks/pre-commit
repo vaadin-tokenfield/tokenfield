@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
-# Blocks a commit that stages org.jspecify into org/vaadin/tokenfield/client/**.
-# Same rule and message as the Claude Code PreToolUse guard in
-# .claude/settings.json; both call scripts/check-jspecify-client-guard.sh.
+# Blocks a commit that stages:
+#  - org.jspecify into org/vaadin/tokenfield/client/**
+#  - a disallowed org.junit.jupiter.api.Assertions member (anything but
+#    assertThrows/fail) into any .java file
+# Same rules as the Claude Code PreToolUse guards in .claude/settings.json.
 #
 # Not active until enabled once per checkout:
 #   git config core.hooksPath .githooks
 set -euo pipefail
 
 repo_root=$(git rev-parse --show-toplevel)
-guard="$repo_root/scripts/check-jspecify-client-guard.sh"
+guards=(
+    "$repo_root/scripts/check-jspecify-client-guard.sh"
+    "$repo_root/scripts/check-junit-assertions-guard.sh"
+)
 status=0
 
 while IFS= read -r -d '' path; do
-    if ! git show ":$path" | "$guard" "$path"; then
-        status=1
-    fi
+    for guard in "${guards[@]}"; do
+        if ! git show ":$path" | "$guard" "$path"; then
+            status=1
+        fi
+    done
 done < <(git diff --cached --name-only --diff-filter=ACM -z)
 
 exit $status

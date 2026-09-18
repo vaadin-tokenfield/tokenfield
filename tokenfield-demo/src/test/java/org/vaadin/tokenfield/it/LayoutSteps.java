@@ -81,13 +81,13 @@ public class LayoutSteps {
 
     @When("I mark the field as read-only")
     public void markReadOnly() {
-        world.demo().readOnlyCheckbox().click();
+        world.demo().readOnlyCheckbox().check();
         world.demo().waitForVaadin();
     }
 
     @When("I mark the field as editable again")
     public void markEditable() {
-        world.demo().readOnlyCheckbox().click();
+        world.demo().readOnlyCheckbox().uncheck();
         world.demo().waitForVaadin();
     }
 
