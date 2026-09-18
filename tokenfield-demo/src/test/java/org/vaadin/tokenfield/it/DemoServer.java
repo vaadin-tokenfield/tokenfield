@@ -68,10 +68,10 @@ final class DemoServer {
      * goal that defines {@code it.http.port}:
      * <ul>
      *   <li>blank — an empty {@code -Dit.baseUrl=}</li>
-     *   <li>the unresolved property truncated to just "http://localhost",
+     *   <li>the unresolved property truncated to just "<a href="http://localhost">localhost</a>",
      *       with no port at all — which Playwright accepts as a syntactically
      *       valid base URL, so {@code page.navigate("/")} resolves to a bare
-     *       "http://localhost/" that nothing is listening on, instead of
+     *       "<a href="http://localhost/">localhost</a>" that nothing is listening on, instead of
      *       failing loudly.</li>
      * </ul>
      */

@@ -52,6 +52,12 @@
 
         <junit.version>5.14.4</junit.version>
         <truth.version>1.4.5</truth.version>
+        <!-- Last release that still runs on Java 8 - see the errorprone
+             profile below and docs/code-quality.md. -->
+        <errorprone.version>2.10.0</errorprone.version>
+        <!-- error-prone-javac: backports JDK 9's -Xplugin compiler hook onto
+             JDK 8; required by the errorprone profile below. -->
+        <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
         <playwright.version>1.62.0</playwright.version>
         <cucumber.version>7.34.6</cucumber.version>
         <!-- Nullness annotations; org.vaadin.tokenfield.client must never depend on this, see AGENTS.md -->
@@ -330,43 +336,6 @@
                     <artifactId>git-build-hook-maven-plugin</artifactId>
                     <version>3.6.0</version>
                 </plugin>
-
-                <plugin>
-                    <groupId>com.github.spotbugs</groupId>
-                    <artifactId>spotbugs-maven-plugin</artifactId>
-                    <version>${spotbugs.plugin.version}</version>
-                    <configuration>
-                        <!-- Deliberately not bound to a lifecycle phase: `mvn verify`
-                             stays the fast build/test loop, and the build workflow
-                             invokes spotbugs:check explicitly as an earlier step. -->
-                        <effort>Max</effort>
-                        <!-- Default "Medium" threshold: the add-on is clean at it today,
-                             so it can fail the check. The remaining Low-priority
-                             findings (serialVersionUID on inner listener classes and
-                             friends) are inherited from the original add-on and are
-                             reported by `-Dspotbugs.threshold=Low`, not enforced. -->
-                        <threshold>Medium</threshold>
-                        <xmlOutput>true</xmlOutput>
-                        <excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs-excludes.xml</excludeFilterFile>
-                    </configuration>
-                </plugin>
-
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-pmd-plugin</artifactId>
-                    <version>${pmd.plugin.version}</version>
-                    <configuration>
-                        <targetJdk>${maven.compiler.target}</targetJdk>
-                        <!-- Fail on PMD priority 1-2 (correctness-level) findings only.
-                             The default ruleset's style advice (priority 3+) is
-                             reported for review instead of enforced, so turning this
-                             gate on doesn't require reformatting inherited code. -->
-                        <failurePriority>2</failurePriority>
-                        <printFailingErrors>true</printFailingErrors>
-                        <!-- No maven-jxr-plugin report in this build to link to -->
-                        <linkXRef>false</linkXRef>
-                    </configuration>
-                </plugin>
             </plugins>
         </pluginManagement>
 
@@ -496,6 +465,103 @@
                     </snapshots>
                 </pluginRepository>
             </pluginRepositories>
+        </profile>
+
+        <profile>
+            <!--
+                SpotBugs, PMD and Error Prone (https://errorprone.info), all pinned to
+                their last releases that still run on this project's Java 8 (see the
+                maven.compiler.source/target comment above; Error Prone in particular
+                needs JDK 21+ from 2.11.0 on). Not part of the default build: each is
+                an extra pass over every compile, and the fast inner loop should stay
+                fast. Truth's own docs recommend Error Prone - several bundled checks
+                catch Truth misuse directly (e.g. TruthIncompatibleType,
+                TruthAssertExpected); see docs/code-quality.md.
+                Run with: mvn -Pstatic-analysis test-compile spotbugs:check pmd:check
+            -->
+            <id>static-analysis</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <pluginManagement>
+                    <plugins>
+                        <plugin>
+                            <groupId>com.github.spotbugs</groupId>
+                            <artifactId>spotbugs-maven-plugin</artifactId>
+                            <version>${spotbugs.plugin.version}</version>
+                            <configuration>
+                                <!-- Deliberately not bound to a lifecycle phase: `mvn verify`
+                                     stays the fast build/test loop, and the build workflow
+                                     invokes spotbugs:check explicitly as an earlier step. -->
+                                <effort>Max</effort>
+                                <!-- Default "Medium" threshold: the add-on is clean at it today,
+                                     so it can fail the check. The remaining Low-priority
+                                     findings (serialVersionUID on inner listener classes and
+                                     friends) are inherited from the original add-on and are
+                                     reported by `-Dspotbugs.threshold=Low`, not enforced. -->
+                                <threshold>Medium</threshold>
+                                <xmlOutput>true</xmlOutput>
+                                <excludeFilterFile>${maven.multiModuleProjectDirectory}/config/spotbugs-excludes.xml</excludeFilterFile>
+                            </configuration>
+                        </plugin>
+
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-pmd-plugin</artifactId>
+                            <version>${pmd.plugin.version}</version>
+                            <configuration>
+                                <targetJdk>${maven.compiler.target}</targetJdk>
+                                <!-- Fail on PMD priority 1-2 (correctness-level) findings only.
+                                     The default ruleset's style advice (priority 3+) is
+                                     reported for review instead of enforced, so turning this
+                                     gate on doesn't require reformatting inherited code. -->
+                                <failurePriority>2</failurePriority>
+                                <printFailingErrors>true</printFailingErrors>
+                                <!-- No maven-jxr-plugin report in this build to link to -->
+                                <linkXRef>false</linkXRef>
+                            </configuration>
+                        </plugin>
+                    </plugins>
+                </pluginManagement>
+
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-compiler-plugin</artifactId>
+                        <version>3.16.0</version>
+                        <configuration>
+                            <!-- JDK 8's own javac has no -Xplugin support at all (that
+                                 hook was added in JDK 9); error-prone-javac backports it,
+                                 loaded ahead of the JDK's own classes via -Xbootclasspath/p.
+                                 fork=true is required for -J to reach the compiler process. -->
+                            <fork>true</fork>
+                            <compilerArgs>
+                                <arg>-J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone.javac.version}/javac-${errorprone.javac.version}.jar</arg>
+                                <arg>-XDcompilePolicy=simple</arg>
+                                <!-- JDK 8's javac predates the double-dash should-stop
+                                     flag (a JDK 9+ addition); this is its -XD equivalent. -->
+                                <arg>-XDshould-stop.ifError=FLOW</arg>
+                                <arg>-Xplugin:ErrorProne</arg>
+                            </compilerArgs>
+                            <annotationProcessorPaths>
+                                <path>
+                                    <groupId>com.google.errorprone</groupId>
+                                    <artifactId>error_prone_core</artifactId>
+                                    <version>${errorprone.version}</version>
+                                </path>
+                            </annotationProcessorPaths>
+                        </configuration>
+                        <dependencies>
+                            <dependency>
+                                <groupId>com.google.errorprone</groupId>
+                                <artifactId>javac</artifactId>
+                                <version>${errorprone.javac.version}</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

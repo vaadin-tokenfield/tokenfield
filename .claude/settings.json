@@ -8,6 +8,11 @@
             "type": "command",
             "command": "jq -c 'def isClient: ((.tool_input.file_path // \"\") | test(\"(^|/)org/vaadin/tokenfield/client/\")); def texts: ([.tool_input.content, .tool_input.new_string] + ((.tool_input.edits // []) | map(.new_string))) | map(select(. != null)); if isClient and (texts | any(test(\"org\\\\.jspecify\"))) then {hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"deny\",permissionDecisionReason:\"org.vaadin.tokenfield.client is GWT-compiled (Java 7 source level, see AGENTS.md) and ships no JSpecify-translatable source; importing org.jspecify there breaks the widgetset compile in every consuming project.\"}} else {} end'",
             "statusMessage": "Checking client/** stays JSpecify-free"
+          },
+          {
+            "type": "command",
+            "command": "jq -c -f scripts/check-junit-assertions-guard.jq",
+            "statusMessage": "Checking Truth is used instead of JUnit Assertions (except assertThrows/fail)"
           }
         ]
       }

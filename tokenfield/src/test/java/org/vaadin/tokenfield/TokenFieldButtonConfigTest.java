@@ -77,7 +77,7 @@ class TokenFieldButtonConfigTest {
 
     @Test
     void clickingTokenButtonCallsOnTokenClick() {
-        AtomicReference<Object> clicked = new AtomicReference<Object>();
+        AtomicReference<Object> clicked = new AtomicReference<>();
         TestTokenField custom = new TestTokenField() {
             @Override
             protected void onTokenClick(Object tokenId) {

@@ -141,7 +141,7 @@ public class TestTokenField extends TokenField {
 
     /** Returns all layout components in their current order. */
     public List<Component> getLayoutComponents() {
-        List<Component> result = new ArrayList<Component>();
+        List<Component> result = new ArrayList<>();
         for (Component component : layout) {
             result.add(component);
         }

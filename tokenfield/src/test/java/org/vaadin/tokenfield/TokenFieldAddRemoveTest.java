@@ -140,7 +140,7 @@ class TokenFieldAddRemoveTest {
     @Test
     void setValueAddsNewTokenButtons() {
         field.addToken("existing");
-        LinkedHashSet<Object> newSet = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> newSet = new LinkedHashSet<>();
         newSet.add("existing");
         newSet.add("new1");
         field.setValue(newSet);
@@ -152,7 +152,7 @@ class TokenFieldAddRemoveTest {
     void setValueRemovesAbsentTokenButtons() {
         field.addToken("keep");
         field.addToken("remove");
-        LinkedHashSet<Object> newSet = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> newSet = new LinkedHashSet<>();
         newSet.add("keep");
         field.setValue(newSet);
         assertThat(field.getTokenButtons()).hasSize(1);
@@ -171,7 +171,7 @@ class TokenFieldAddRemoveTest {
     @Test
     void setEmptySetClearsAllButtons() {
         field.addToken("a");
-        field.setValue(new LinkedHashSet<Object>());
+        field.setValue(new LinkedHashSet<>());
         assertThat(field.getTokenButtons()).isEmpty();
     }
 }

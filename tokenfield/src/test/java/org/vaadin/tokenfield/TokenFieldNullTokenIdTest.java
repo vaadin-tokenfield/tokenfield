@@ -13,7 +13,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 import java.util.stream.Stream;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 /**
  * Pins {@code null} as a fully supported token id, across every public
@@ -71,7 +70,9 @@ class TokenFieldNullTokenIdTest {
 
     @Test
     void removeTokenOnAVirginFieldIsANoOp() {
-        assertDoesNotThrow(() -> field.removeToken(null));
+        assertThat(field.buttons).isEmpty();
+        field.removeToken(null);
+        assertThat(field.buttons).isEmpty();
     }
 
     /**
@@ -85,7 +86,7 @@ class TokenFieldNullTokenIdTest {
     void removingANullTokenThatWasNeverAddedIsANoOpEvenWithOtherTokensPresent() {
         field.addToken("present");
 
-        assertDoesNotThrow(() -> field.removeToken(null));
+        field.removeToken(null);
 
         assertThat(field.getTokenButtons()).containsKey("present");
         assertThat(field.getTokenButtons()).doesNotContainKey(null);
@@ -154,7 +155,7 @@ class TokenFieldNullTokenIdTest {
     void configureTokenButtonAcceptsNullTokenId() {
         Button button = new Button();
 
-        assertDoesNotThrow(() -> field.configureTokenButton(null, button));
+        field.configureTokenButton(null, button);
 
         // getTokenCaption(null) is null under the default mode; string
         // concatenation renders that as the literal word "null".

@@ -14,7 +14,7 @@ import java.util.List;
  * .v-loading-indicator} CSS class, which Vaadin 7 only shows ~300 ms after a
  * request starts and so can read "idle" before a round-trip has begun.
  */
-final class DemoPage {
+final class DemoPage implements AutoCloseable {
 
     /** Panel indices, in the order {@code DemoRoot.Content} adds them. */
     static final int BASIC = 0;
@@ -33,7 +33,7 @@ final class DemoPage {
           + "  return true;"
           + "}";
 
-    private final Page page;
+    private Page page;
 
     DemoPage(Page page) {
         this.page = page;
@@ -47,6 +47,12 @@ final class DemoPage {
         page.navigate("/");
         page.waitForSelector(".v-app");
         waitForVaadin();
+    }
+
+    @Override
+    public void close() throws Exception {
+        page.close();
+        page = null;
     }
 
     void waitForVaadin() {

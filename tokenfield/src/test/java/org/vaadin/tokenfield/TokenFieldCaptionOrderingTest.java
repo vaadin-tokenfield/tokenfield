@@ -45,7 +45,7 @@ class TokenFieldCaptionOrderingTest {
         field.setTokenCaption("id-a", "Alpha");
         field.setTokenCaption("id-b", "Beta");
 
-        LinkedHashSet<Object> value = new LinkedHashSet<Object>();
+        LinkedHashSet<Object> value = new LinkedHashSet<>();
         value.add("id-a");
         value.add("id-b");
         field.setPropertyDataSource(new ObjectProperty(value));

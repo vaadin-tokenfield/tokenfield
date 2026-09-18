@@ -30,7 +30,7 @@ jobs:
   # conflict with main that a branch-only build cannot see, and it keeps the
   # pull request's own check list complete rather than borrowing the branch's.
   static-analysis:
-    name: SpotBugs & PMD
+    name: SpotBugs, PMD & Error Prone
 
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -48,17 +48,23 @@ jobs:
           java-version: 8
           cache: maven
 
-      # Configured in the parent POM's pluginManagement, so CI and a local run
-      # execute exactly the same checks. `test-compile` gives the analysers
-      # freshly compiled classes and lets tokenfield-demo resolve tokenfield
-      # from the reactor, and it stops short of `prepare-package`, so the GWT
-      # widgetset compile doesn't run here.
+      # SpotBugs, PMD and Error Prone all live in the root POM's
+      # `static-analysis` profile (see docs/code-quality.md), so CI and a
+      # local run execute exactly the same checks. `test-compile` gives the
+      # analysers freshly compiled classes (Error Prone runs as part of that
+      # compile, via the profile's compiler-plugin config) and lets
+      # tokenfield-demo resolve tokenfield from the reactor, and it stops
+      # short of `prepare-package`, so the GWT widgetset compile doesn't run
+      # here.
       #
-      # Gates: SpotBugs at its default Medium threshold with Max effort, PMD on
-      # priority 1-2 findings. The publish job needs this job to succeed, so a
-      # finding here blocks publishing regardless of the other jobs.
-      - name: SpotBugs & PMD
-        run: mvn --batch-mode --no-transfer-progress test-compile spotbugs:check pmd:check
+      # Gates: SpotBugs at its default Medium threshold with Max effort, PMD
+      # on priority 1-2 findings, Error Prone on ERROR-severity findings
+      # (-XDshould-stop.ifError=FLOW in the profile; WARNING-severity ones are
+      # reported but don't fail it). The publish job needs this job to
+      # succeed, so a finding here blocks publishing regardless of the other
+      # jobs.
+      - name: SpotBugs, PMD & Error Prone
+        run: mvn --batch-mode --no-transfer-progress -Pstatic-analysis test-compile spotbugs:check pmd:check
 
       # The full reports, including the findings below the gates' thresholds.
       - name: Upload static analysis reports
@@ -261,9 +267,9 @@ jobs:
     name: Publish
     needs: [static-analysis, build, sonar]
     # GitHub Actions skips a job whose `needs` didn't all succeed, so a
-    # SpotBugs/PMD finding, a build failure or a failed Sonar quality gate
-    # blocks this job without any extra plumbing here. Only main (snapshot) and
-    # v* tags (release) publish anything.
+    # SpotBugs/PMD/Error Prone finding, a build failure or a failed Sonar
+    # quality gate blocks this job without any extra plumbing here. Only main
+    # (snapshot) and v* tags (release) publish anything.
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
 
     runs-on: ubuntu-latest

@@ -15,11 +15,7 @@
  */
 package org.vaadin.tokenfield;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.vaadin.tokenfield.TokenField.InsertPosition;
@@ -164,7 +160,7 @@ public class DemoRoot extends UI {
                     @Override
                     protected void onTokenInput(Object tokenId) {
                         Set<Object> set = (Set<Object>) getValue();
-                        Contact c = new Contact("", tokenId.toString());
+                        Contact c = new Contact("", Objects.toString(tokenId));
                         if (set != null && set.contains(c)) {
                             // duplicate
                             Notification.show(getTokenCaption(tokenId)
@@ -226,7 +222,7 @@ public class DemoRoot extends UI {
                 f.setInputPrompt("Enter contact name or new email address");
                 f.setRememberNewTokens(false); // we'll do this via the dialog
                 // Pre-add a few:
-                Iterator it = f.getTokenIds().iterator();
+                Iterator<?> it = f.getTokenIds().iterator();
                 f.addToken(it.next());
                 f.addToken(it.next());
                 f.addToken(new Contact("", "thatnewguy@example.com"));
@@ -396,7 +392,7 @@ public class DemoRoot extends UI {
      * does not do proper validation - you can add weird stuff.
      */
     public static class EditContactWindow extends Window {
-        private Contact contact;
+        private final Contact contact;
 
         EditContactWindow(final String t, final TokenField f) {
             super("New Contact");
@@ -417,7 +413,7 @@ public class DemoRoot extends UI {
             // doubles as the JPA entity behind the panel below, so it carries a
             // generated id as well; that is not the user's business here.
             Form form = new Form();
-            form.setItemDataSource(new BeanItem<Contact>(contact),
+            form.setItemDataSource(new BeanItem<>(contact),
                     Arrays.asList("name", "email"));
             form.setImmediate(true);
             l.addComponent(form);
@@ -433,8 +429,8 @@ public class DemoRoot extends UI {
                 private static final long serialVersionUID = -1198191849568844582L;
 
                 public void buttonClick(ClickEvent event) {
-                    if (contact.getEmail() == null
-                            || contact.getEmail().isEmpty()) {
+                    String email = contact.getEmail();
+                    if (email == null || email.isEmpty()) {
                         contact.setEmail(contact.getName());
                     }
                     f.addToken(contact);
@@ -450,11 +446,11 @@ public class DemoRoot extends UI {
                         private static final long serialVersionUID = 1L;
 
                         public void buttonClick(ClickEvent event) {
-                            if (contact.getEmail() == null
-                                    || contact.getEmail().isEmpty()) {
+                            String email = contact.getEmail();
+                            if (email == null || email.isEmpty()) {
                                 contact.setEmail(contact.getName());
                             }
-                            ((BeanItemContainer) f.getContainerDataSource())
+                            ((BeanItemContainer<Contact>) f.getContainerDataSource())
                                     .addBean(contact);
                             f.addToken(contact);
                             f.getUI().removeWindow(EditContactWindow.this);
@@ -477,24 +473,24 @@ public class DemoRoot extends UI {
             "Fielding", "Einstein" };
 
     private static Container generateTestContainer() {
-        BeanItemContainer<Contact> container = new BeanItemContainer<Contact>(
-                Contact.class);
+        BeanItemContainer<Contact> container = new BeanItemContainer<>(Contact.class);
 
-        HashSet<String> log = new HashSet<String>();
+        HashSet<String> log = new HashSet<>();
         Random r = new Random(5);
-        for (int i = 0; i < 20;) {
-            String fn = firstnames[(r.nextInt(firstnames.length))];
-            String ln = lastnames[(r.nextInt(lastnames.length))];
-            String name = fn + " " + ln;
-            String email = fn.toLowerCase() + "." + ln.toLowerCase()
-                    + "@example.com";
+        for (int i = 0; i < 20; i++) {
+            while(true) {
+                String fn = firstnames[(r.nextInt(firstnames.length))];
+                String ln = lastnames[(r.nextInt(lastnames.length))];
+                String name = fn + " " + ln;
+                String email = fn.toLowerCase() + "." + ln.toLowerCase()
+                        + "@example.com";
 
-            if (!log.contains(email)) {
-                log.add(email);
-                container.addBean(new Contact(name, email));
-                i++;
+                if (!log.contains(email)) {
+                    log.add(email);
+                    container.addBean(new Contact(name, email));
+                    break;
+                }
             }
-
         }
         return container;
     }
