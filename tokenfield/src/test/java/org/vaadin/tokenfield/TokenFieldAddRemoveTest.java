@@ -163,7 +163,7 @@ class TokenFieldAddRemoveTest {
         assertThat(field.getTokenButtons()).doesNotContainKey("remove");
     }
 
-    // #10: buttons of a value set at once follow the value's order, not hash order
+    // #45: buttons of a value set at once follow the value's order, not hash order
     @Test
     void setValueCreatesButtonsInTheValuesOrder() {
         LinkedHashSet<Object> value = new LinkedHashSet<>();
