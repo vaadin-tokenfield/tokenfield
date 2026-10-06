@@ -429,7 +429,8 @@ public class TokenField extends CustomField<Set<?>> implements Container.Editor 
         }
 
         Set<Object> remove = new HashSet<>(old);
-        Set<Object> add = new HashSet<>(newValue);
+        // Keep the value's iteration order, like addToken's LinkedHashSet (#10)
+        Set<Object> add = new LinkedHashSet<>(newValue);
         remove.removeAll(newValue);
         add.removeAll(old);
 
