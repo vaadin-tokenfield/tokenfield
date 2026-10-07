@@ -51,7 +51,7 @@ jobs:
       # SpotBugs, PMD and Error Prone all live in the root POM's
       # `static-analysis` profile (see docs/code-quality.md), so CI and a
       # local run execute exactly the same checks. `test-compile` gives the
-      # analysers freshly compiled classes (Error Prone runs as part of that
+      # analyzers freshly compiled classes (Error Prone runs as part of that
       # compile, via the profile's compiler-plugin config) and lets
       # tokenfield-demo resolve tokenfield from the reactor, and it stops
       # short of `prepare-package`, so the GWT widgetset compile doesn't run
@@ -219,7 +219,7 @@ jobs:
           persist-credentials: false
 
       # Java 21, not the project's Java 8: Sonar's scanner requires 17+. It
-      # analyses the Java 8 bytecode and sources this produces all the same.
+      # analyzes the Java 8 bytecode and sources this produces all the same.
       - uses: actions/setup-java@v5
         if: steps.cfg.outputs.enabled == 'true'
         with:
@@ -234,7 +234,7 @@ jobs:
           path: ~/.sonar/cache
           key: sonar-${{ runner.os }}
 
-      # Only the add-on module is analysed: it is the code that ships, and its
+      # Only the add-on module is analyzed: it is the code that ships, and its
       # build has no GWT step that would need Java 8. Stopping at `test` (rather
       # than `verify`) keeps the widgetset compile and the javadoc/assembly
       # packaging out of the way while still running the tests under the JaCoCo
@@ -256,7 +256,7 @@ jobs:
       # -Dsonar.qualitygate.wait=true fails this step, and so the job, if
       # Sonar's quality gate doesn't pass — the publish job needs this job to
       # succeed, so that blocks publishing too.
-      - name: Analyse
+      - name: Analyze
         if: steps.cfg.outputs.enabled == 'true'
         run: >
           mvn --batch-mode --no-transfer-progress -pl tokenfield -am

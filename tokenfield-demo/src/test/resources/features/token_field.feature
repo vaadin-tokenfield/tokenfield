@@ -178,7 +178,7 @@ Feature: TokenField everyday usage
       | Address book     |
       | JPA address book |
 
-  Scenario Outline: Cancelling removal of an existing contact's token keeps it
+  Scenario Outline: Canceling removal of an existing contact's token keeps it
     Given the "<example>" example
     When I click the "Linus Adams" token chip
     Then a "Remove Linus Adams" window opens
@@ -305,7 +305,7 @@ Feature: TokenField everyday usage
 
   # ---------------------------------------------------------------------
   # JPA address book, on its own — the scenarios above already cover this
-  # panel's behaviour against the BeanItemContainer one. What is left is
+  # panel's behavior against the BeanItemContainer one. What is left is
   # the one place the two deliberately differ.
   #
   # Typing a whole value that names someone already in the address book:

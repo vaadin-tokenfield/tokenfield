@@ -53,8 +53,8 @@ not been tested against Vaadin 6.)
 
 ## Links
 
-- Source repository: https://github.com/vaadin-tokenfield/tokenfield
-- Issue tracker: https://github.com/vaadin-tokenfield/tokenfield/issues
+- Source repository: <https://github.com/vaadin-tokenfield/tokenfield>
+- Issue tracker: <https://github.com/vaadin-tokenfield/tokenfield/issues>
 - License: Apache License 2.0
 
 ## Icon

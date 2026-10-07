@@ -10,7 +10,7 @@ import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertTha
 /**
  * Generic add/remove/suggest steps shared by every panel: entering a value,
  * removing a token by click or Backspace, and the recall/duplicate-
- * prevention behaviour common to every {@link org.vaadin.tokenfield.TokenField}.
+ * prevention behavior common to every {@link org.vaadin.tokenfield.TokenField}.
  */
 public class TokenEntrySteps {
 

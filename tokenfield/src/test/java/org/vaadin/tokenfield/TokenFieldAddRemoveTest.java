@@ -12,7 +12,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Tests for {@link TokenField#addToken}, {@link TokenField#removeToken}, and
- * the {@code setValue ↔ button reconciliation} behaviour of
+ * the {@code setValue ↔ button reconciliation} behavior of
  * {@link TokenField#setInternalValue}.
  */
 class TokenFieldAddRemoveTest {

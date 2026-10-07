@@ -25,7 +25,7 @@ than parallel-plus-duplicate saves. That trade only makes sense at this project'
 a compile that took several minutes, or a browser suite an order of magnitude longer, would flip
 the answer toward a shared build stage. Measured current step times (2026-08-07, run
 `31166720813`): `mvn verify` end to end 105s (GWT widgetset compile 30s of that, the Cucumber
-suite 20s), `static-analysis` ~90s of mostly cold-cache plugin download, `sonar`'s `test` + analyse
+suite 20s), `static-analysis` ~90s of mostly cold-cache plugin download, `sonar`'s `test` + analyze
 ~50s.
 
 ## SpotBugs and PMD
@@ -37,7 +37,7 @@ Prone, below), so CI and a local run execute exactly the same checks:
 ./mvnw -Pstatic-analysis test-compile spotbugs:check pmd:check
 ```
 
-One invocation, on purpose: `test-compile` gives the analysers freshly compiled classes and lets
+One invocation, on purpose: `test-compile` gives the analyzers freshly compiled classes and lets
 `tokenfield-demo` resolve `tokenfield` from the reactor instead of from a repository, and it stops
 short of `prepare-package`, so the ~30-second GWT widgetset compile stays out of this job. With the
 profile active, that same `test-compile` also runs Error Prone (it hooks into the compile itself,
@@ -120,17 +120,17 @@ on a fork or a new project:
 3. Add the analysis token as a repository secret named `SONAR_TOKEN`
    (*Settings → Secrets and variables → Actions*).
 4. For a self-hosted SonarQube, also add a repository **variable** `SONAR_HOST_URL` pointing at it;
-   without one the job analyses against SonarQube Cloud.
+   without one the job analyzes against SonarQube Cloud.
 
 SonarQube Cloud is free for **public** projects, which this repository is — the job is opt-in only
 because the Sonar-side project and token have to be created by hand first; there's no cost reason
 to keep it off.
 
-`-Dsonar.qualitygate.wait=true` fails the `Analyse` step, and so the job, if Sonar's quality gate
+`-Dsonar.qualitygate.wait=true` fails the `Analyze` step, and so the job, if Sonar's quality gate
 doesn't pass. `publish` needs this job to succeed, so a failed gate blocks the snapshot deploy and
 the Maven Central release the same way a SpotBugs or PMD finding does.
 
-Only the `tokenfield` module is analysed: it is the code that ships, and unlike `tokenfield-demo`
+Only the `tokenfield` module is analyzed: it is the code that ships, and unlike `tokenfield-demo`
 its build has no GWT step that would need Java 8 (Sonar's scanner requires Java 17+, so this job
 runs on Java 21 while `static-analysis` and `build` use Java 8). The job compiles and unit-tests
 `tokenfield` itself — `mvn -pl tokenfield -am test` — rather than depend on the `build` job's

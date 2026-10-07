@@ -102,7 +102,7 @@ public class JpaAddressBookPanel extends Panel {
 
         final TokenField f = new JpaAddressBookField(lo, contacts);
         l.addComponent(f);
-        // This would turn on the "fake tekstfield" look:
+        // This would turn on the "fake text field" look:
         f.setStyleName(TokenField.STYLE_TOKENFIELD);
         f.setWidth("100%");
         f.setInputWidth("100%");

@@ -88,7 +88,7 @@ public class DemoRoot extends UI {
 
             {
                 /*
-                 * Interpretes "," as token separator
+                 * Interprets "," as token separator
                  */
 
                 Panel p = new Panel("Comma separated");
@@ -212,7 +212,7 @@ public class DemoRoot extends UI {
                     }
                 };
                 l.addComponent(f);
-                // This would turn on the "fake tekstfield" look:
+                // This would turn on the "fake text field" look:
                 f.setStyleName(TokenField.STYLE_TOKENFIELD);
                 f.setWidth("100%");
                 f.setInputWidth("100%");

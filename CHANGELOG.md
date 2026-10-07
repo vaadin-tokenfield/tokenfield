@@ -46,18 +46,18 @@ First release of the fork. Forked from the original TokenField add-on's last ups
   insert position, button configuration, delegation, sizing, captions/icons, layout swapping,
   the delete-key path, and UI input behavior.
 - JaCoCo coverage reporting and a build-failing line-coverage threshold (90%) on the add-on module.
-- A Cucumber-JVM BDD browser suite, driven by Playwright for Java and 
+- A Cucumber-JVM BDD browser suite, driven by Playwright for Java and
   run under `maven-failsafe-plugin` against the Demo application.
 - A demo panel showing the component usage with a JPAContainer (using an in-memory H2 database)
 - Automated CI build and code-quality review on every push and pull request
 - JSpecify `@Nullable` annotations on `TokenField`'s public getters/setters that can accept or
   return null, documenting existing behavior — not a behavior change.
-  (using SpotBugs, PMD, and SonarQube). 
+  (using SpotBugs, PMD, and SonarQube).
   See [docs/code-quality.md](docs/code-quality.md).
 
 ### Fixed
 
-- Token captions and icons no longer depend on the order of the initialisation calls
+- Token captions and icons no longer depend on the order of the initialization calls
   ([#8](https://github.com/vaadin-tokenfield/tokenfield/issues/8)).
 - Clicking a token of a read-only field no longer throws `Property.ReadOnlyException`.
 - `removeToken` no longer throws on a field that has no value
@@ -71,10 +71,10 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 
 ## [7.0.1]
 
-- Updated to work with 7.0 final. 
+- Updated to work with 7.0 final.
 - Note: CSS selectors are made stronger, you might have to do the same if you have styled TokenField.
 
 ## [7.0.0]
 
-- Converted to work with Vaadin 7. 
+- Converted to work with Vaadin 7.
 - Added a possibility to customize the adding of new items to the dropdown.

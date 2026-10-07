@@ -11,7 +11,7 @@ import static com.google.common.truth.Truth.assertWithMessage;
 
 /**
  * Verifies construction defaults and that every constructor variant produces
- * a correctly initialised field.
+ * a correctly initialized field.
  */
 class TokenFieldDefaultsTest {
 
