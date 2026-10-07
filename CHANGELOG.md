@@ -60,6 +60,8 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - Token captions and icons no longer depend on the order of the initialization calls
   ([#8](https://github.com/vaadin-tokenfield/tokenfield/issues/8)).
 - Clicking a token of a read-only field no longer throws `Property.ReadOnlyException`.
+- Tokens set all at once through `setValue` are shown in the value's own order instead of hash
+  order ([#45](https://github.com/vaadin-tokenfield/tokenfield/issues/45)).
 - `removeToken` no longer throws on a field that has no value
   ([#13](https://github.com/vaadin-tokenfield/tokenfield/issues/13)).
 - Add missing Apache license file headers

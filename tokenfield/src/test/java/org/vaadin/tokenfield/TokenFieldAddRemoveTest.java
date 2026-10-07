@@ -1,8 +1,11 @@
 package org.vaadin.tokenfield;
 
+import com.vaadin.ui.Button;
+import com.vaadin.ui.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -158,6 +161,32 @@ class TokenFieldAddRemoveTest {
         assertThat(field.getTokenButtons()).hasSize(1);
         assertThat(field.getTokenButtons()).containsKey("keep");
         assertThat(field.getTokenButtons()).doesNotContainKey("remove");
+    }
+
+    // #45: buttons of a value set at once follow the value's order, not hash order
+    @Test
+    void setValueCreatesButtonsInTheValuesOrder() {
+        LinkedHashSet<Object> value = new LinkedHashSet<>();
+        value.add("charlie");
+        value.add("alpha");
+        value.add("bravo");
+        field.setValue(value);
+        assertWithMessage("Token buttons must appear in the order of the value")
+                .that(field.getTokenButtons().keySet())
+                .containsExactly("charlie", "alpha", "bravo").inOrder();
+
+        List<Component> shown = new ArrayList<>();
+        for (Component c : field.getLayout()) {
+            if (c instanceof Button) {
+                shown.add(c);
+            }
+        }
+        assertWithMessage("Layout must show the tokens in the order of the value")
+                .that(shown)
+                .containsExactly(field.getTokenButtons().get("charlie"),
+                        field.getTokenButtons().get("alpha"),
+                        field.getTokenButtons().get("bravo"))
+                .inOrder();
     }
 
     @Test
