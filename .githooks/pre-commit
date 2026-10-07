@@ -3,7 +3,9 @@
 #  - org.jspecify into org/vaadin/tokenfield/client/**
 #  - a disallowed org.junit.jupiter.api.Assertions member (anything but
 #    assertThrows/fail) into any .java file
-# Same rules as the Claude Code PreToolUse guards in .claude/settings.json.
+#  - a .md file that fails markdownlint (.markdownlint.jsonc)
+#  - a file with a spelling error (cspell, .cspell.json)
+# Same rules as the Claude Code hooks in .claude/settings.json.
 #
 # Not active until enabled once per checkout:
 #   git config core.hooksPath .githooks
@@ -13,6 +15,7 @@ repo_root=$(git rev-parse --show-toplevel)
 guards=(
     "$repo_root/scripts/check-jspecify-client-guard.sh"
     "$repo_root/scripts/check-junit-assertions-guard.sh"
+    "$repo_root/scripts/lint-markdown.sh"
 )
 status=0
 
@@ -23,5 +26,7 @@ while IFS= read -r -d '' path; do
         fi
     done
 done < <(git diff --cached --name-only --diff-filter=ACM -z)
+
+"$repo_root/scripts/spellcheck.sh" --staged || status=1
 
 exit $status

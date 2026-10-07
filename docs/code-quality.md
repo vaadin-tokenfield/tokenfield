@@ -192,6 +192,28 @@ Jetty JVM and merging a second `.exec` file into the report.
 `scripts/check-jspecify-client-guard.sh`, the same script the Claude Code `PreToolUse` guard in
 `.claude/settings.json` calls, so both enforce the identical rule.
 
+The same hook also runs two linters on staged files, both via pinned `npx` and skipped with a
+warning when `npx` is missing:
+
+- `scripts/lint-markdown.sh`: markdownlint-cli2 on `.md` files, config in `.markdownlint.jsonc`
+  (prose hard-wrapped at 100 columns).
+- `scripts/spellcheck.sh`: cspell on every text file, config in `.cspell.json`. Spelling is
+  American English; British forms the en-US dictionary tolerates (double-L inflections, `-our`)
+  are listed under `flagWords`. Genuine project terms go into `project-words.txt`; deliberate
+  misspellings that can't change (the public `STYLE_BUTTON_EMPHAZISED`, test data) go under
+  `ignoreWords`. Vendored files (Maven wrapper, `.gitignore`/`.gitattributes` templates,
+  `LICENSE.txt`) are in `ignorePaths`. The pre-commit hook calls it once with `--staged`, which
+  checks a snapshot of the index in a single cspell run (one `npx` startup, not one per file).
+
+The agent `PostToolUse` hook `.agents/hooks/lint-text.sh` (symlinked into `.claude/hooks/`) runs
+both scripts after every edit and feeds findings back to the agent. The whole repository is
+clean for both; to check it in full:
+
+```shell
+git ls-files '*.md' | xargs npx --yes markdownlint-cli2@0.23.3
+git ls-files | npx --yes cspell@10.3.6 --no-progress --no-must-find-files --file-list stdin
+```
+
 A plain `git clone` gets it enabled automatically: `com.rudikershaw.gitbuildhook:git-build-hook-maven-plugin`,
 bound to the `validate` phase of the root POM, sets `core.hooksPath` on the first `./mvnw` run.
 **A `git worktree` checkout does not** - the plugin detects it and deliberately makes no

@@ -16,6 +16,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/lint-text.sh",
+            "statusMessage": "Linting Markdown and spelling"
+          }
+        ]
+      }
     ]
   }
 }

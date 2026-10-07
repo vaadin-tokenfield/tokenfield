@@ -1,0 +1,1 @@
+../../.agents/hooks/lint-text.sh

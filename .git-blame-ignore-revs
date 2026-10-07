@@ -1,0 +1,5 @@
+# Formatting/spelling-only commits, skipped by `git blame` and GitHub's blame view.
+# Enable locally once: git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: American spelling and Markdown lint cleanup
+9d9168ff1f4d6ba42ec8fa3dddb95d4e68c5f03b

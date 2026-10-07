@@ -1,0 +1,50 @@
+{
+  "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
+  "version": "0.2",
+  "language": "en-US",
+  "dictionaryDefinitions": [
+    {
+      "name": "project-words",
+      "path": "./project-words.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["project-words"],
+  "ignorePaths": [
+    "**/target/**",
+    "**/node_modules/**",
+    "/.cspell.json",
+    "/project-words.txt",
+    "/mvnw",
+    "/mvnw.cmd",
+    "/.mvn/**",
+    "/.run/**",
+    "/.gitattributes",
+    "/.gitignore",
+    "/LICENSE.txt"
+  ],
+  "ignoreRegExpList": ["/(?<![\\w-])(?:-J)?-[DPX][\\w.:/-]+/g"],
+  "ignoreWords": [
+    "EMPHAZISED",
+    "dont",
+    "newitem",
+    "newtag",
+    "offlist",
+    "rawid",
+    "yetanother"
+  ],
+  "flagWords": [
+    "cancelled",
+    "cancelling",
+    "honour",
+    "honoured",
+    "honouring",
+    "honours",
+    "labelled",
+    "labelling",
+    "modelled",
+    "modelling",
+    "travelled",
+    "travelling"
+  ]
+}

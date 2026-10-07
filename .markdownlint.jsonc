@@ -1,0 +1,5 @@
+// markdownlint config for scripts/lint-markdown.sh, run by .githooks/pre-commit and the
+// agent hook .agents/hooks/lint-text.sh. Prose is hard-wrapped at 100 columns.
+{
+  "MD013": { "line_length": 100, "code_blocks": false, "tables": false },
+}

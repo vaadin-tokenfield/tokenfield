@@ -77,24 +77,8 @@ Client side (`org.vaadin.tokenfield.client.ui`, compiled by GWT 2.7 into the wid
 
 ## Bug reports and fixes
 
-Treat an issue's diagnosis and proposed fix as a hypothesis, not a spec. Before proposing a fix:
-
-1. **Reproduce** with a failing unit test through `TestTokenField` (or a `.feature` scenario if
-   only a browser shows it). A report that cannot be reproduced is reported back as such.
-2. **Classify**: genuine bug, or invalid usage of the component? Compare against how the
-   standard Vaadin 7 components behave in the same situation (`ComboBox`, `AbstractSelect`,
-   `AbstractField`, `CustomField`): the add-on mirrors their contracts, so their behavior is
-   the reference. Read the actual framework source/bytecode of the pinned `vaadin.version`
-   (sources jar in `~/.m2`, or `javap` against `vaadin-server`), and the Vaadin 7 docs via the
-   `vaadin` MCP server; the Javadoc of `TokenField` records where it deliberately deviates.
-3. **Judge the proposed solution** against Vaadin practice: does the framework already offer a
-   hook or pattern for this (`markAsDirty`, `setInternalValue`, RPC/state, `ItemCaptionMode`
-   handling, ...)? Prefer the framework's way over an add-on-local workaround, and say so when
-   the issue's suggestion differs from what you implement.
-
-The fix is done when the reproduction test passes, the reference-behavior comparison is
-written down (test name or a 1–3 line comment), and any deviation from the reporter's
-suggestion is explained in the PR/commit.
+Follow `.agents/skills/fix-bug-report/SKILL.md`: reproduce first, classify against Vaadin 7
+reference behavior, then judge the reporter's proposed fix.
 
 ## Conventions
 
@@ -106,9 +90,28 @@ suggestion is explained in the PR/commit.
   listing name; groupId `org.vaadin.addons.tokenfield` is an intentional breaking change from
   upstream.
 - Non-goal: Vaadin 8+ features beyond the planned Vaadin 8 port. No Vaadin 9+.
+- Agent-neutral skills, hooks and similar live in `.agents/`, with a relative symlink from the
+  matching `.claude/` path (e.g. `.claude/skills/x -> ../../.agents/skills/x`). Claude-only
+  config (`settings.json`) stays in `.claude/`.
 
 ## Code comments
 
 Keep comments terse — 1-3 lines max. Only explain non-obvious WHY (hidden
 constraint, workaround, invariant), never WHAT the code does. Prefer a short
 inline comment near the relevant line over a long JavaDoc paragraph.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues (`vaadin-tokenfield/tokenfield`), managed via the `gh` CLI. See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`.
+See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `GLOSSARY.md` + `docs/adr/` (created lazily). See `docs/agents/domain.md`.
