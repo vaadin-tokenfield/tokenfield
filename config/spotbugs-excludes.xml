@@ -23,4 +23,27 @@
         <Bug pattern="DMI_RANDOM_USED_ONLY_ONCE"/>
     </Match>
 
+    <!--
+        Not a leak: the NewTokenHandler is a strategy object the application
+        hands in and may keep, the same shape as
+        AbstractSelect.setNewItemHandler / getNewItemHandler. The inner
+        DefaultNewTokenHandler holds its enclosing field by design.
+    -->
+    <Match>
+        <Class name="org.vaadin.tokenfield.TokenField"/>
+        <Or>
+            <Method name="getNewTokenHandler"/>
+            <Method name="setNewTokenHandler"/>
+        </Or>
+        <Or>
+            <Bug pattern="EI_EXPOSE_REP"/>
+            <Bug pattern="EI_EXPOSE_REP2"/>
+        </Or>
+    </Match>
+    <Match>
+        <Class name="org.vaadin.tokenfield.TokenField$DefaultNewTokenHandler"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
 </FindBugsFilter>

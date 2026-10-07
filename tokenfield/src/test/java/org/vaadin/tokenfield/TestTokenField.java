@@ -9,6 +9,7 @@ import com.vaadin.ui.Component;
 import com.vaadin.ui.Layout;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,6 +73,16 @@ public class TestTokenField extends TokenField {
      */
     public void simulateNewItemInput(String text) {
         cb.getNewItemHandler().addNewItem(text);
+    }
+
+    /**
+     * Simulates the client submitting typed text as a {@code newitem}
+     * variable, one step further out than {@link #simulateNewItemInput}:
+     * {@code ComboBox.changeVariables} is where text is dropped when new items
+     * are not allowed, so this is the entry point Lookup mode is tested at.
+     */
+    public void simulateTypedInput(String text) {
+        cb.changeVariables(cb, Collections.singletonMap("newitem", text));
     }
 
     /**

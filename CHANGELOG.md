@@ -39,6 +39,16 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - `TokenField.initTokenCaption(String)` and `initTokenIcon(String)`, overridable hooks for what
   `rememberToken(String)` writes into the caption/icon property of a newly entered item. Default
   behavior is unchanged from before this release: the typed text as caption, no icon.
+- `TokenField.NewTokenHandler` and `setNewTokenHandler`, the counterpart of
+  `ComboBox.setNewItemHandler`: how text the user typed becomes a token. Needed for a container
+  that names or validates its items itself (`JPAContainer`, `BeanItemContainer`); the demo's
+  address-book panels show it.
+- Documented and demoed the workaround for a container keyed by something other than the token id
+  (e.g. `JPAContainer` by `Long`): a `NewTokenHandler` plus a `getTokenCaption`/`getTokenIcon`
+  override, since the component itself cannot resolve such a token without asking the container
+  about an id it cannot hold. Out-of-the-box support for such containers is not a goal
+  ([#24](https://github.com/vaadin-tokenfield/tokenfield/issues/24), closed as won't-fix) — see the
+  JPA address-book demo panel.
 - Maven-based Project packaging
 - Maven Central release path (GPG signing and Central Portal publishing), in addition to the
   Directory ZIP bundle.
@@ -49,6 +59,8 @@ First release of the fork. Forked from the original TokenField add-on's last ups
 - A Cucumber-JVM BDD browser suite, driven by Playwright for Java and 
   run under `maven-failsafe-plugin` against the Demo application.
 - A demo panel showing the component usage with a JPAContainer (using an in-memory H2 database)
+- A "Lookup only" demo panel (`setNewTokensAllowed(false)`), browser scenarios for the lookup
+  and oblivious modes, and a README section on the three usage modes.
 - Automated CI build and code-quality review on every push and pull request
 - JSpecify `@Nullable` annotations on `TokenField`'s public getters/setters that can accept or
   return null, documenting existing behavior — not a behavior change.

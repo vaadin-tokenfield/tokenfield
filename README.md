@@ -69,6 +69,44 @@ addComponent(f);
 See the [demo module](tokenfield-demo) for a full-featured example, including custom token
 rendering, a backing `Container` ('address book'), and confirm-on-remove dialogs.
 
+### Usage modes
+
+Two switches decide what happens to text the user types that matches no suggestion. Picking a
+suggestion always adds that item as a token.
+
+| Mode | `setNewTokensAllowed` | `setRememberNewTokens` | Typed text becomes | Demo panel |
+|---|---|---|---|---|
+| **Writeable** (default) | `true` | `true` | a token *and* a container item under that text | Basic, Comma separated |
+| **Oblivious** | `true` | `false` | a token of this field only; the container is not touched | Address books, "Don't add" |
+| **Lookup** | `false` | — | nothing; only container items can be tokens | Lookup only |
+
+In every mode `addToken(Object)` may add a token the container does not hold: the value is the
+source of truth, the container supplies suggestions, captions and icons.
+
+Writeable mode adds the item with `Container.addItem(text)`, which a container that names or
+validates its items itself — a `JPAContainer`, a `BeanItemContainer`, anything with required
+columns — refuses. For those, install a `NewTokenHandler` (the counterpart of
+`ComboBox.setNewItemHandler`) that creates the item through the container's own API and adds
+the id it gets back:
+
+```java
+TokenField f = new TokenField();
+f.setContainerDataSource(contacts); // a JPAContainer<Contact>
+f.setTokenCaptionPropertyId("name");
+f.setNewTokenHandler(text -> {
+    Long known = findByNameOrEmail(text);          // already in the book?
+    if (known != null) {
+        f.addToken(known);
+    } else {
+        f.addToken(contacts.addEntity(new Contact(text))); // or open a dialog and addToken later
+    }
+});
+```
+
+The default handler runs `rememberToken(text)` and then `onTokenInput(text)` — container first,
+as Vaadin's own `DefaultNewItemHandler` does — so `onTokenInput` sees the same ids whether a
+token was picked or typed. Both address-book demo panels use a handler like the one above.
+
 The field is very configurable, as can be seen in the [demo](http://marc.virtuallypreinstalled.com/TokenField/).
 
 Features include:
@@ -78,7 +116,7 @@ Features include:
 - suggestions from container
 - auto add new to container
 - disallow tokens not in container
-- custom action on add (+ detect if token is in container)
+- custom action on add, and custom creation of new tokens (`NewTokenHandler`)
 - custom configuring of the token button (style, caption, etc)
 - custom action on remove
 - built-in style for either TextField or ComboBox look

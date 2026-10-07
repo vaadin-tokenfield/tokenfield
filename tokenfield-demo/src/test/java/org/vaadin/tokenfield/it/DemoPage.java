@@ -23,6 +23,7 @@ final class DemoPage implements AutoCloseable {
     static final int LAYOUT = 3;
     static final int BUFFERED = 4;
     static final int JPA_FULL = 5;
+    static final int LOOKUP = 6;
 
     private static final String VAADIN_IDLE =
             "() => {"

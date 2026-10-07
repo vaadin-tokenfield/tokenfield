@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Tests {@link TokenField#rememberToken(String)} via the NewItemHandler path
@@ -148,6 +149,21 @@ class TokenFieldRememberTokenTest {
 
         assertThat(c.getItem("tag1").getItemProperty("icon").getValue())
                 .isNull();
+    }
+
+    // ------------------------------------------------------------------
+    // A container that assigns its own ids
+    // ------------------------------------------------------------------
+
+    @Test
+    void aContainerThatRefusesExplicitIdsSaysSo() {
+        field.setContainerDataSource(new GeneratedIdContainer());
+
+        assertWithMessage("No silent fallback: such a container needs a"
+                + " NewTokenHandler, or setRememberNewTokens(false)")
+                .that(assertThrows(UnsupportedOperationException.class,
+                        () -> field.simulateNewItemInput("new@example.com")))
+                .isNotNull();
     }
 
     private IndexedContainer withNameProperty() {
