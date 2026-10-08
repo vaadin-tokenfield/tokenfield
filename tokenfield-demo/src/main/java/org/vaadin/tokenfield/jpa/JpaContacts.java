@@ -43,6 +43,8 @@ public final class JpaContacts {
     /** Must match the unit name in {@code META-INF/persistence.xml}. */
     private static final String PERSISTENCE_UNIT = "tokenfield-demo";
 
+    private static final Object SEED_LOCK = new Object();
+
     /**
      * Seed data, as {@code name|email} pairs.
      * <p>
@@ -93,18 +95,20 @@ public final class JpaContacts {
      * order they happen to run in.
      * </p>
      */
-    public static synchronized void resetToSeedData() {
-        EntityManager em = entityManager();
-        try {
-            em.getTransaction().begin();
-            em.createQuery("DELETE FROM Contact c").executeUpdate();
-            for (String contact : CONTACTS) {
-                String[] parts = contact.split("\\|");
-                em.persist(new Contact(parts[0], parts[1]));
+    public static void resetToSeedData() {
+        synchronized (SEED_LOCK) {
+            EntityManager em = entityManager();
+            try {
+                em.getTransaction().begin();
+                em.createQuery("DELETE FROM Contact c").executeUpdate();
+                for (String contact : CONTACTS) {
+                    String[] parts = contact.split("\\|");
+                    em.persist(new Contact(parts[0], parts[1]));
+                }
+                em.getTransaction().commit();
+            } finally {
+                em.close();
             }
-            em.getTransaction().commit();
-        } finally {
-            em.close();
         }
     }
 
