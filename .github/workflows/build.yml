@@ -42,7 +42,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 8
@@ -99,7 +99,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 8
@@ -132,11 +132,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-1.62.0
+          key: playwright-${{ runner.os }}-1.63.0
           restore-keys: playwright-${{ runner.os }}-
 
       - name: Install Playwright OS dependencies
-        run: sudo npx --yes playwright@1.62.0 install-deps chromium
+        run: sudo npx --yes playwright@1.63.0 install-deps chromium
 
       # Unit tests, the JaCoCo coverage floor (tokenfield/pom.xml), the GWT
       # widgetset compile and the browser BDD suite.
@@ -220,7 +220,7 @@ jobs:
 
       # Java 21, not the project's Java 8: Sonar's scanner requires 17+. It
       # analyzes the Java 8 bytecode and sources this produces all the same.
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         if: steps.cfg.outputs.enabled == 'true'
         with:
           distribution: temurin
@@ -283,7 +283,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 8
@@ -320,7 +320,7 @@ jobs:
       # to be set before this step will succeed.
       - name: Configure Maven Central credentials
         if: needs.build.outputs.release == 'true'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 8

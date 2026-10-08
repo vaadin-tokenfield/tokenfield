@@ -44,7 +44,7 @@ profile active, that same `test-compile` also runs Error Prone (it hooks into th
 not a separate goal), so this one command gates all three.
 
 Both plugins are pinned to their last releases that still run on Java 8 (`spotbugs-maven-plugin`
-4.7.3.6, `maven-pmd-plugin` 3.21.2), which is the JDK this project builds with.
+4.8.6.8, `maven-pmd-plugin` 3.28.0), which is the JDK this project builds with.
 
 Only findings serious enough to be actionable fail the build:
 

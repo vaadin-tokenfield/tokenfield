@@ -58,10 +58,10 @@
         <!-- error-prone-javac: backports JDK 9's -Xplugin compiler hook onto
              JDK 8; required by the errorprone profile below. -->
         <errorprone.javac.version>9+181-r4173-1</errorprone.javac.version>
-        <playwright.version>1.62.0</playwright.version>
+        <playwright.version>1.63.0</playwright.version>
         <cucumber.version>7.34.6</cucumber.version>
         <!-- Nullness annotations; org.vaadin.tokenfield.client must never depend on this, see AGENTS.md -->
-        <jspecify.version>1.0.0</jspecify.version>
+        <jspecify.version>1.0.1</jspecify.version>
 
         <maven.deploy.skip>true</maven.deploy.skip>
 
@@ -73,8 +73,8 @@
             .github/workflows/build.yml and the README's "Code quality"
             section for how they are run.
         -->
-        <spotbugs.plugin.version>4.7.3.6</spotbugs.plugin.version>
-        <pmd.plugin.version>3.21.2</pmd.plugin.version>
+        <spotbugs.plugin.version>4.8.6.8</spotbugs.plugin.version>
+        <pmd.plugin.version>3.28.0</pmd.plugin.version>
 
         <!--
             SonarQube analysis (Sonar's own scanner needs Java 17+, so it runs in
@@ -263,7 +263,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>3.1.4</version>
+                    <version>3.2.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -288,12 +288,12 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.6.0-M1</version>
+                    <version>3.6.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.6.0-M1</version>
+                    <version>3.6.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -313,12 +313,12 @@
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>exec-maven-plugin</artifactId>
-                    <version>3.5.1</version>
+                    <version>3.6.4</version>
                 </plugin>
                 <plugin>
                     <groupId>org.codehaus.mojo</groupId>
                     <artifactId>build-helper-maven-plugin</artifactId>
-                    <version>3.6.0</version>
+                    <version>3.6.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.jacoco</groupId>

@@ -62,7 +62,7 @@ public class DemoRoot extends UI {
         setContent(new Content());
     }
 
-    static class Content extends VerticalLayout {
+    static final class Content extends VerticalLayout {
 
         Content() {
             // Just add some spacing so it looks nicer
